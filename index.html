@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generative AI Chat</title>
+  </head>
+  <body>
+    <h1>Chat with Sam</h1>
+    <input id="userInput" type="text" placeholder="Type your message here" />
+    <button onclick="sendMessage()">Send</button>
+    <div id="response"></div>
+
+    <script>
+      async function sendMessage() {
+        const userInput = document.getElementById("userInput").value;
+        const responseElement = document.getElementById("response");
+
+        // Use the full API URL (including localhost and port)
+        const response = await fetch("http://localhost:3000/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userInput,
+            userId: "unique-user-id", // Add a static or dynamic userId
+          }),
+        });
+
+        if (!response.ok) {
+          responseElement.innerHTML = "Error communicating with the server.";
+          return;
+        }
+
+        const data = await response.json();
+        responseElement.innerHTML = data.response;
+      }
+    </script>
+  </body>
+</html>
