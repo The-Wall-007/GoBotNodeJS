@@ -115,7 +115,8 @@ async function processBookingStep(userInput, userSession) {
 
   switch (currentStep) {
     case "greeting":
-      botResponse = "Hi there! Where is your pickup location?";
+      botResponse =
+        "Hi there! I am delighted to hear that you are traveling! Where is your pickup location?";
       userSession.currentStep = "pickupLocation";
       break;
 
@@ -130,7 +131,7 @@ async function processBookingStep(userInput, userSession) {
           .map((loc) => loc.label)
           .join(", ")}. Please be more specific.`;
       } else {
-        botResponse = `Invalid location. Please choose from: ${validLocationLabels.join(
+        botResponse = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
           ", "
         )}`;
       }
@@ -153,7 +154,7 @@ async function processBookingStep(userInput, userSession) {
       const parsedTime = parseNaturalLanguageTime(userInput);
       if (parsedTime) {
         bookingDetails.pickupTime = parsedTime;
-        botResponse = "Where will you be dropped off?";
+        botResponse = "Where will you be returning to?";
         userSession.currentStep = "returnLocation";
       } else {
         botResponse = "Invalid time format. Please try again.";
@@ -172,7 +173,7 @@ async function processBookingStep(userInput, userSession) {
           .map((loc) => loc.label)
           .join(", ")}. Please be more specific.`;
       } else {
-        botResponse = `Invalid location. Please choose from: ${validLocationLabels.join(
+        botResponse = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
           ", "
         )}`;
       }

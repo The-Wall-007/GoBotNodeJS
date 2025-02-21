@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Generative AI Chat</title>
+    <title>Generative AI Go App Chat Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body class="bg-gray-100 flex justify-center items-center h-screen">
@@ -69,7 +69,7 @@
           const data = await response.json();
 
           // Display bot's response
-          chatBox.innerHTML += `<div class="text-left text-gray-700 my-1"><strong>Sam:</strong> ${data.response}</div>`;
+          chatBox.innerHTML += `<div class="text-left text-gray-700 my-1"><strong>Go Bot:</strong> ${data.response}</div>`;
         } catch (error) {
           chatBox.innerHTML += `<div class="text-left text-red-600 my-1"><strong>Error:</strong> Unable to get response.</div>`;
         } finally {
