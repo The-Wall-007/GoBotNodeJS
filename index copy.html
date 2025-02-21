@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generative AI Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 flex justify-center items-center h-screen">
+    <div class="w-full max-w-md bg-white shadow-lg rounded-lg p-4">
+      <h1 class="text-xl font-bold text-center mb-4">
+        Book your trip with Go App Bot
+      </h1>
+      <div
+        id="chatBox"
+        class="h-64 overflow-y-auto p-2 border border-gray-300 rounded-lg mb-2 bg-gray-50"
+      >
+        <!-- Chat messages will appear here -->
+      </div>
+      <div class="flex items-center gap-2">
+        <input
+          id="userInput"
+          type="text"
+          placeholder="Type your message..."
+          class="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          id="sendButton"
+          onclick="sendMessage()"
+          class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+        >
+          Send
+        </button>
+      </div>
+      <p id="loading" class="text-center text-gray-500 mt-2 hidden">
+        Typing...
+      </p>
+    </div>
+
+    <script>
+      async function sendMessage() {
+        const userInputElement = document.getElementById("userInput");
+        const sendButton = document.getElementById("sendButton");
+        const chatBox = document.getElementById("chatBox");
+        const loadingElement = document.getElementById("loading");
+
+        const userInput = userInputElement.value.trim();
+        if (!userInput) return;
+
+        // Add user's message to chat box
+        chatBox.innerHTML += `<div class="text-right text-blue-600 my-1"><strong>You:</strong> ${userInput}</div>`;
+        userInputElement.value = "";
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // Show loading indicator
+        loadingElement.classList.remove("hidden");
+        userInputElement.disabled = true;
+        sendButton.disabled = true;
+
+        try {
+          const response = await fetch("http://localhost:3000/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userInput, userId: "unique-user-id" }),
+          });
+
+          if (!response.ok) throw new Error("Server error");
+
+          const data = await response.json();
+
+          // Display bot's response
+          chatBox.innerHTML += `<div class="text-left text-gray-700 my-1"><strong>Sam:</strong> ${data.response}</div>`;
+        } catch (error) {
+          chatBox.innerHTML += `<div class="text-left text-red-600 my-1"><strong>Error:</strong> Unable to get response.</div>`;
+        } finally {
+          // Hide loading, enable input and button
+          loadingElement.classList.add("hidden");
+          userInputElement.disabled = false;
+          sendButton.disabled = false;
+          chatBox.scrollTop = chatBox.scrollHeight;
+        }
+      }
+    </script>
+  </body>
+</html>
