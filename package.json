@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google-cloud/aiplatform": "^3.34.0",
     "@google/generative-ai": "^0.21.0",
     "axios": "^1.7.9",
     "chrono-node": "^2.7.8",

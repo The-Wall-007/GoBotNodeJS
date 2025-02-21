@@ -108,10 +108,74 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+async function extractLocationWithGemini(input) {
+  const prompt = `Extract the airport or location from the following text: "${input}"\nReturn only the location name, nothing else. If no location is found, return "null".`;
+
+  try {
+    const location = await runChat(prompt); // Reuse your runChat function
+    const trimmedLocation = location.trim(); // Trim whitespace
+
+    if (trimmedLocation.toLowerCase() === "null") {
+      return null;
+    }
+    return trimmedLocation;
+  } catch (error) {
+    console.error("Error extracting location with Gemini:", error);
+    return null;
+  }
+}
+
+let extracted = {};
+
 // Booking step processor
 async function processBookingStep(userInput, userSession) {
   let botResponse = "";
   const { bookingDetails, currentStep } = userSession;
+
+  async function extractBookingInfo(input, isPickup) {
+    const locationText = await extractLocationWithGemini(input);
+
+    if (locationText) {
+      const locationMatches = findLocationMatch(locationText);
+      if (locationMatches.length === 1) {
+        isPickup
+          ? (extracted.pickupLocation = locationMatches[0])
+          : (extracted.returnLocation = locationMatches[0]);
+      } else if (locationMatches.length > 1) {
+        isPickup
+          ? ((extracted.pickupLocation = "multiple"),
+            (extracted.pickupLocationMatches = locationMatches))
+          : ((extracted.returnLocation = "multiple"),
+            (extracted.returnLocationMatches = locationMatches));
+      } else {
+        isPickup
+          ? (extracted.pickupLocation = null)
+          : (extracted.returnLocation = null);
+      }
+    } else {
+      botResponse = `I'm here to assist you with your bookings. Could you please share the details of your request? I'd be happy to help!`;
+    }
+
+    // 2. Date and Time (using chrono)
+    const parsedDate = chrono.parseDate(input);
+    if (parsedDate) {
+      isPickup
+        ? ((extracted.pickupDate = format(parsedDate, "yyyy-MM-dd")),
+          (extracted.pickupTime = format(parsedDate, "HH:mm")))
+        : ((extracted.returnDate = format(parsedDate, "yyyy-MM-dd")),
+          (extracted.returnTime = format(parsedDate, "HH:mm")));
+    } else {
+      const timeRegex = /(\d{1,2}:\d{2}(?:AM|PM)?)/i;
+      const timeMatch = input.match(timeRegex);
+      if (timeMatch) {
+        isPickup
+          ? (extracted.pickupTime = timeMatch[1])
+          : (extracted.returnTime = timeMatch[1]);
+      }
+    }
+
+    return extracted;
+  }
 
   switch (currentStep) {
     case "greeting":
@@ -119,114 +183,210 @@ async function processBookingStep(userInput, userSession) {
       userSession.currentStep = "pickupLocation";
       break;
 
-    case "pickupLocation": {
-      const locationMatches = findLocationMatch(userInput);
-      if (locationMatches.length === 1) {
-        bookingDetails.pickupLocation = locationMatches[0];
-        botResponse = `Pickup location set to ${locationMatches[0].label}. What is the pickup date? (e.g., Today, Tomorrow, YYYY-MM-DD)`;
-        userSession.currentStep = "pickupDate";
-      } else if (locationMatches.length > 1) {
-        botResponse = `I found multiple matches for your pickup location: ${locationMatches
-          .map((loc) => loc.label)
-          .join(", ")}. Please be more specific.`;
-      } else {
-        botResponse = `Invalid location. Please choose from: ${validLocationLabels.join(
-          ", "
-        )}`;
-      }
-      break;
-    }
-
-    case "pickupDate": {
-      const parsedDate = parseNaturalLanguageDate(userInput);
-      if (parsedDate) {
-        bookingDetails.pickupDate = parsedDate;
-        botResponse = "Got it! What is the pickup time? (e.g., 11 AM, 15:30)";
-        userSession.currentStep = "pickupTime";
-      } else {
-        botResponse = "Invalid date format. Please try again.";
-      }
-      break;
-    }
-
+    case "pickupLocation":
+    case "pickupDate":
     case "pickupTime": {
-      const parsedTime = parseNaturalLanguageTime(userInput);
-      if (parsedTime) {
-        bookingDetails.pickupTime = parsedTime;
-        botResponse = "Where will you be dropped off?";
-        userSession.currentStep = "returnLocation";
-      } else {
-        botResponse = "Invalid time format. Please try again.";
-      }
-      break;
-    }
+      const extractedInfo = await extractBookingInfo(userInput, true);
 
-    case "returnLocation": {
-      const locationMatches = findLocationMatch(userInput);
-      if (locationMatches.length === 1) {
-        bookingDetails.returnLocation = locationMatches[0];
-        botResponse = `Return location set to ${locationMatches[0].label}. What is the return date? (e.g., Tomorrow, YYYY-MM-DD)`;
-        userSession.currentStep = "returnDate";
-      } else if (locationMatches.length > 1) {
-        botResponse = `I found multiple matches for your return location: ${locationMatches
+      console.log(
+        "extractedInfo in pickup::::" + JSON.stringify(extractedInfo)
+      );
+
+      if (extractedInfo.pickupLocation === "multiple") {
+        botResponse = `I found multiple matches for your pickup location: ${extractedInfo.pickupLocationMatches
           .map((loc) => loc.label)
           .join(", ")}. Please be more specific.`;
-      } else {
-        botResponse = `Invalid location. Please choose from: ${validLocationLabels.join(
-          ", "
-        )}`;
+        userSession.currentStep = "pickupLocation"; // Stay on pickupLocation
+        break; // Important: Exit the case early
       }
-      break;
-    }
 
-    case "returnDate": {
-      const parsedDate = parseNaturalLanguageDate(userInput);
-      if (parsedDate) {
-        if (new Date(parsedDate) >= new Date(bookingDetails.pickupDate)) {
-          bookingDetails.returnDate = parsedDate;
-          botResponse =
-            "Got it! What time will you be returning the vehicle? (e.g., 3 PM, 16:00)";
-          userSession.currentStep = "returnTime";
+      if (extractedInfo.pickupLocation) {
+        bookingDetails.pickupLocation = extractedInfo.pickupLocation;
+      } else {
+        // Fallback to original logic if no location is found
+        const locationMatches = findLocationMatch(userInput);
+        if (locationMatches.length === 1) {
+          bookingDetails.pickupLocation = locationMatches[0];
+        } else if (locationMatches.length > 1) {
+          botResponse = `I found multiple matches for your pickup location: ${locationMatches
+            .map((loc) => loc.label)
+            .join(", ")}. Please be more specific.`;
+          userSession.currentStep = "pickupLocation";
+          break;
         } else {
-          botResponse =
-            "The return date can’t be earlier than the pickup date. Please enter a valid return date.";
+          botResponse = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
+            ", "
+          )}`;
+          userSession.currentStep = "pickupLocation";
+          break;
         }
-      } else {
-        botResponse =
-          "Hmm, I didn’t understand that date. Please try again with a valid date format.";
       }
-      break;
+
+      if (extractedInfo.pickupDate) {
+        bookingDetails.pickupDate = extractedInfo.pickupDate;
+      }
+      if (extractedInfo.pickupTime) {
+        bookingDetails.pickupTime = extractedInfo.pickupTime;
+      }
+
+      if (
+        bookingDetails.pickupLocation &&
+        bookingDetails.pickupDate &&
+        bookingDetails.pickupTime
+      ) {
+        userSession.currentStep = "returnLocation"; // Skip ahead!
+        botResponse = `Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}. Where will you be dropped off?`;
+        break; // Very important to break here
+      } else if (bookingDetails.pickupLocation && bookingDetails.pickupDate) {
+        userSession.currentStep = "pickupTime";
+        botResponse = `Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate}. What time will you be picked up?`;
+        break;
+      } else if (bookingDetails.pickupLocation) {
+        userSession.currentStep = "pickupDate";
+        botResponse = `Pickup location set to ${bookingDetails.pickupLocation.label}. What is the pickup date?`;
+        break;
+      } else {
+        userSession.currentStep = "pickupLocation";
+        botResponse = "Where is your pickup location?";
+        break;
+      }
     }
 
+    // case "returnLocation": {
+    //   const locationMatches = findLocationMatch(userInput);
+    //   if (locationMatches.length === 1) {
+    //     bookingDetails.returnLocation = locationMatches[0];
+    //     botResponse = `Return location set to ${locationMatches[0].label}. What is the return date? (e.g., Tomorrow, YYYY-MM-DD)`;
+    //     userSession.currentStep = "returnDate";
+    //   } else if (locationMatches.length > 1) {
+    //     botResponse = `I found multiple matches for your return location: ${locationMatches
+    //       .map((loc) => loc.label)
+    //       .join(", ")}. Please be more specific.`;
+    //   } else {
+    //     botResponse = `Invalid location. Please choose from: ${validLocationLabels.join(
+    //       ", "
+    //     )}`;
+    //   }
+    //   break;
+    // }
+
+    // case "returnDate": {
+    //   const parsedDate = parseNaturalLanguageDate(userInput);
+    //   if (parsedDate) {
+    //     if (new Date(parsedDate) >= new Date(bookingDetails.pickupDate)) {
+    //       bookingDetails.returnDate = parsedDate;
+    //       botResponse =
+    //         "Got it! What time will you be returning the vehicle? (e.g., 3 PM, 16:00)";
+    //       userSession.currentStep = "returnTime";
+    //     } else {
+    //       botResponse =
+    //         "The return date can’t be earlier than the pickup date. Please enter a valid return date.";
+    //     }
+    //   } else {
+    //     botResponse =
+    //       "Hmm, I didn’t understand that date. Please try again with a valid date format.";
+    //   }
+    //   break;
+    // }
+
+    // case "returnTime": {
+    //   const parsedTime = parseNaturalLanguageTime(userInput);
+    //   if (parsedTime) {
+    //     const pickupDate = new Date(bookingDetails.pickupDate);
+    //     const returnDate = new Date(bookingDetails.returnDate);
+
+    //     // Combine date and time for comparison
+    //     const pickupDateTime = new Date(
+    //       `${pickupDate.toDateString()} ${bookingDetails.pickupTime}`
+    //     );
+    //     const returnDateTime = new Date(
+    //       `${returnDate.toDateString()} ${parsedTime}`
+    //     );
+
+    //     if (
+    //       pickupDate.toDateString() === returnDate.toDateString() &&
+    //       returnDateTime < pickupDateTime
+    //     ) {
+    //       botResponse =
+    //         "The return time can't be earlier than the pickup time if both dates are the same. Please enter a valid return time.";
+    //     } else {
+    //       bookingDetails.returnTime = parsedTime;
+    //       botResponse = `Got it! Your trip: Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}, returning to ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}. Confirm? (yes/no)`;
+    //       userSession.currentStep = "confirmation";
+    //     }
+    //   } else {
+    //     botResponse = "Invalid time format. Please try again.";
+    //   }
+    //   break;
+    // }
+
+    case "returnLocation":
+    case "returnDate":
     case "returnTime": {
-      const parsedTime = parseNaturalLanguageTime(userInput);
-      if (parsedTime) {
-        const pickupDate = new Date(bookingDetails.pickupDate);
-        const returnDate = new Date(bookingDetails.returnDate);
+      const extractedInfo = await extractBookingInfo(userInput, false);
 
-        // Combine date and time for comparison
-        const pickupDateTime = new Date(
-          `${pickupDate.toDateString()} ${bookingDetails.pickupTime}`
-        );
-        const returnDateTime = new Date(
-          `${returnDate.toDateString()} ${parsedTime}`
-        );
+      console.log(
+        "extractedInfo in return::::" + JSON.stringify(extractedInfo)
+      );
 
-        if (
-          pickupDate.toDateString() === returnDate.toDateString() &&
-          returnDateTime < pickupDateTime
-        ) {
-          botResponse =
-            "The return time can't be earlier than the pickup time if both dates are the same. Please enter a valid return time.";
-        } else {
-          bookingDetails.returnTime = parsedTime;
-          botResponse = `Got it! Your trip: Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}, returning to ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}. Confirm? (yes/no)`;
-          userSession.currentStep = "confirmation";
-        }
-      } else {
-        botResponse = "Invalid time format. Please try again.";
+      if (extractedInfo.returnLocation === "multiple") {
+        botResponse = `I found multiple matches for your return location: ${extractedInfo.returnLocationMatches
+          .map((loc) => loc.label)
+          .join(", ")}. Please be more specific.`;
+        userSession.currentStep = "returnLocation"; // Stay on returnLocation
+        break; // Important: Exit the case early
       }
-      break;
+
+      if (extractedInfo.returnLocation) {
+        bookingDetails.returnLocation = extractedInfo.returnLocation;
+      } else {
+        // Fallback to original logic if no location is found
+        const locationMatches = findLocationMatch(userInput);
+        if (locationMatches.length === 1) {
+          bookingDetails.returnLocation = locationMatches[0];
+        } else if (locationMatches.length > 1) {
+          botResponse = `I found multiple matches for your return location: ${locationMatches
+            .map((loc) => loc.label)
+            .join(", ")}. Please be more specific.`;
+          userSession.currentStep = "returnLocation";
+          break;
+        } else {
+          botResponse = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
+            ", "
+          )}`;
+          userSession.currentStep = "returnLocation";
+          break;
+        }
+      }
+
+      if (extractedInfo.returnDate) {
+        bookingDetails.returnDate = extractedInfo.returnDate;
+      }
+      if (extractedInfo.returnTime) {
+        bookingDetails.returnTime = extractedInfo.returnTime;
+      }
+
+      if (
+        bookingDetails.returnLocation &&
+        bookingDetails.returnDate &&
+        bookingDetails.returnTime
+      ) {
+        userSession.currentStep = "confirmation"; // Skip ahead!
+        botResponse = `Got it! Your trip: Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}, returning to ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}. Confirm? (yes/no)`;
+        break; // Very important to break here
+      } else if (bookingDetails.returnLocation && bookingDetails.returnDate) {
+        userSession.currentStep = "returnTime";
+        botResponse = `Return at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate}. What time will you be return?`;
+        break;
+      } else if (bookingDetails.returnLocation) {
+        userSession.currentStep = "returnDate";
+        botResponse = `Return location set to ${bookingDetails.returnLocation.label}. What is the return date?`;
+        break;
+      } else {
+        userSession.currentStep = "returnLocation";
+        botResponse = "Where is your return location?";
+        break;
+      }
     }
 
     case "confirmation": {
@@ -331,7 +491,7 @@ app.post("/restart", (req, res) => {
   });
 
   res.json({
-    message: "Hi there! Where is your pickup location?",
+    message: "Let me know how can I help you?",
   });
 });
 
