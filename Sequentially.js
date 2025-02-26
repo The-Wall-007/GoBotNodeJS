@@ -9,7 +9,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Environment variables
-const MODEL_NAME = "gemini-pro";
+const MODEL_NAME = "gemini-2.0-flash-exp";
 const API_KEY = process.env.API_KEY;
 const token = process.env.AUTH_TOKEN;
 
