@@ -42,96 +42,6 @@ function parseNaturalLanguageTime(input) {
   return parsedDate ? format(parsedDate, "HH:mm") : null;
 }
 
-const getLocationCode = (locationValue) =>
-  validLocations.find((location) => location.value === locationValue)?.value;
-
-const formatDateTime = (date, time) => {
-  const [hours, minutes] = time.split(":");
-  date.setHours(hours);
-  date.setMinutes(minutes);
-  date.setSeconds(0);
-
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(date.getDate()).padStart(2, "0")}T${String(hours).padStart(
-    2,
-    "0"
-  )}:${String(minutes).padStart(2, "0")}:00`;
-};
-
-const fetchAvailableVehicles = async (
-  pickupLocationCode,
-  formattedPickupDateTime,
-  formattedReturnDateTime,
-  token
-) => {
-  const requestData = {
-    locationCode: pickupLocationCode,
-    pickupDate: formattedPickupDateTime,
-    returnDate: formattedReturnDateTime,
-    corpDiscountCode: "PAX",
-    type: "go-app",
-    travelProfileId: 1,
-  };
-
-  try {
-    const response = await axios.post(
-      "https://staging.carcierge.gorentals.com/go-app/available-vehicles",
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching available vehicles:", error);
-    return null;
-  }
-};
-
-const fetchVehicleFee = async (req, token) => {
-  try {
-    const response = await axios.post(
-      "https://staging.carcierge.gorentals.com/go-app/vehicles-fee",
-      req,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching vehicle fee:", error);
-    return null;
-  }
-};
-
-const createBooking = async (bookingRequest, token) => {
-  try {
-    const response = await axios.post(
-      "https://staging.carcierge.gorentals.com/go-app/create-booking",
-      bookingRequest,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error creating booking:", error);
-    return null;
-  }
-};
-
 // Fetch locations from API
 async function fetchLocations() {
   try {
@@ -147,9 +57,6 @@ async function fetchLocations() {
 
     if (Array.isArray(response.data?.data?.locations)) {
       validLocations = response.data.data.locations;
-      console.log(
-        "Location list::::" + JSON.stringify(response.data.data.locations)
-      );
       validLocationLabels = validLocations.map((loc) => loc.label);
     } else {
       throw new Error("Expected response.data.data.locations to be an array");
@@ -594,12 +501,32 @@ async function processBookingStep(userInput, userSession) {
     case "confirmation": {
       const userInputLower = userInput.toLowerCase();
       if (userInputLower === "yes") {
+        const getLocationCode = (locationValue) =>
+          // ?.airportCode;
+          validLocations.find((location) => location.value === locationValue)
+            ?.value;
+
+        const formatDateTime = (date, time) => {
+          const [hours, minutes] = time.split(":");
+          date.setHours(hours);
+          date.setMinutes(minutes);
+          date.setSeconds(0);
+
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+            2,
+            "0"
+          )}-${String(date.getDate()).padStart(2, "0")}T${String(
+            hours
+          ).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+        };
+
         const pickupLocationCode = getLocationCode(
           bookingDetails.pickupLocation.value
         );
         const returnLocationCode = getLocationCode(
           bookingDetails.returnLocation.value
         );
+
         const formattedPickupDateTime = formatDateTime(
           new Date(bookingDetails.pickupDate),
           bookingDetails.pickupTime
@@ -609,53 +536,118 @@ async function processBookingStep(userInput, userSession) {
           bookingDetails.returnTime
         );
 
-        const vehicleListRes = await fetchAvailableVehicles(
-          pickupLocationCode,
-          formattedPickupDateTime,
-          formattedReturnDateTime,
-          token
+        console.log(
+          "req:::" +
+            JSON.stringify({
+              locationCode: pickupLocationCode,
+              pickupDate: formattedPickupDateTime,
+              returnDate: formattedReturnDateTime,
+              corpDiscountCode: "PAX",
+              type: "go-app",
+              travelProfileId: 0,
+            })
         );
-        if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
-          userSession.vehicleList = vehicleListRes.data.allVehicles;
-          console.log(
-            "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
+
+        try {
+          const vehicleListRes = await axios.post(
+            "https://staging.carcierge.gorentals.com/go-app/available-vehicles",
+            {
+              locationCode: pickupLocationCode,
+              pickupDate: formattedPickupDateTime,
+              returnDate: formattedReturnDateTime,
+              corpDiscountCode: "PAX",
+              type: "go-app",
+              travelProfileId: 1,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
           );
-          botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
-            .map(
-              (vehicle) =>
-                `${vehicle.mappedName} - ${
-                  vehicle.category
-                } - $${vehicle.price.toFixed(2)}`
-            )
-            .join("\n")}`;
-          userSession.currentStep = "vehicleSelection";
-        } else {
+
+          if (vehicleListRes) {
+            console.log(
+              "Vehicle list response received:",
+              JSON.stringify(vehicleListRes.data)
+            );
+
+            if (
+              vehicleListRes.data.success &&
+              vehicleListRes.data.data.allVehicles
+            ) {
+              userSession.vehicleList = vehicleListRes.data.data.allVehicles;
+              botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.data.allVehicles
+                .map(
+                  (vehicle) =>
+                    `${vehicle.mappedName} - ${
+                      vehicle.category
+                    } - $${vehicle.price.toFixed(2)}`
+                )
+                .join("\n")}`;
+              userSession.currentStep = "vehicleSelection";
+            } else {
+              botResponse =
+                "Sorry, no vehicles are available for your selected dates and locations.";
+            }
+          }
+        } catch (error) {
+          console.error("Error in confirmation case:", error);
           botResponse =
-            "Sorry, no vehicles are available for your selected dates and locations.";
+            "Oops! Something went wrong while fetching vehicle information.";
         }
-      } else {
+      } else if (userInputLower === "no") {
         botResponse =
-          userInputLower === "no"
-            ? "Which detail would you like to change? (pickup location, pickup date, pickup time, return location, return date, return time)"
-            : "Please answer 'yes' or 'no' to confirm your booking.";
-        userSession.currentStep =
-          userInputLower === "no" ? "changeField" : userSession.currentStep;
+          "Which detail would you like to change? (pickup location, pickup date, pickup time, return location, return date, return time)";
+        userSession.currentStep = "changeField"; // New state for changing fields
+        break;
+      } else {
+        botResponse = "Please answer 'yes' or 'no' to confirm your booking.";
+        break;
       }
+
       break;
     }
 
     case "vehicleSelection": {
+      const getLocationCode = (locationValue) =>
+        // ?.airportCode;
+        validLocations.find((location) => location.value === locationValue)
+          ?.value;
+
+      const formatDateTime = (date, time) => {
+        const [hours, minutes] = time.split(":");
+        date.setHours(hours);
+        date.setMinutes(minutes);
+        date.setSeconds(0);
+
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${String(date.getDate()).padStart(2, "0")}T${String(hours).padStart(
+          2,
+          "0"
+        )}:${String(minutes).padStart(2, "0")}:00`;
+      };
       const vehicleInvID = userInput;
-      const selectedVehicle =
-        userSession.vehicleList.find(
-          (vehicle) => vehicle.InvID === vehicleInvID
-        ) || null;
+
+      const findVehicleByInvID = (invID) => {
+        return (
+          userSession.vehicleList.find((vehicle) => vehicle.InvID === invID) ||
+          null
+        );
+      };
+
+      const selectedVehicle = findVehicleByInvID(vehicleInvID);
+
       const pickupLocationCode = getLocationCode(
         bookingDetails.pickupLocation.value
       );
       const returnLocationCode = getLocationCode(
         bookingDetails.returnLocation.value
       );
+
       const formattedPickupDateTime = formatDateTime(
         new Date(bookingDetails.pickupDate),
         bookingDetails.pickupTime
@@ -684,29 +676,126 @@ async function processBookingStep(userInput, userSession) {
         ],
       };
 
-      const selectedVehicleFee = await fetchVehicleFee(req, token);
-      if (selectedVehicleFee) {
-        const bookingRequest = {
-          vehicle: {
-            InvClass: selectedVehicle?.InvClass ?? "",
-            Make: selectedVehicle?.Make ?? "",
-            Model: selectedVehicle?.Model ?? "",
-            perDayRate: selectedVehicleFee.data.totalRate.RateDescription ?? 0,
-            unitNumber: selectedVehicle?.UnitNumber ?? "",
-          },
-          tpa: { sourceCode: "Charter", referral: "JSX", agentID: "Inflight" },
-          locationCode: pickupLocationCode ?? "",
-          totalRate: selectedVehicleFee.data.totalRate.TotalTM ?? "",
-          estimatedRate:
-            selectedVehicleFee.data.totalRate.EstimatedTotalAmount ?? "",
-          pickUpDateTime: formattedPickupDateTime ?? "",
-          returnDateTime: formattedReturnDateTime ?? "",
-        };
+      try {
+        const selectedVehicleFee = await axios.post(
+          "https://staging.carcierge.gorentals.com/go-app/vehicles-fee",
+          req,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
-        const bookingResponse = await createBooking(bookingRequest, token);
-        botResponse = bookingResponse?.success
-          ? "Your booking has been confirmed! Please check the Garage tab for more information."
-          : "Oops! Something went wrong while creating your booking.";
+        if (selectedVehicleFee) {
+          console.log(
+            "selectedVehicleFee::::" +
+              JSON.stringify(selectedVehicleFee.data.data)
+          ); // Only log the data
+
+          const bookingRequest = {
+            vehicle: {
+              InvClass: selectedVehicle?.InvClass ?? "",
+              Make: selectedVehicle?.Make ?? "",
+              Model: selectedVehicle?.Model ?? "",
+              perDayRate:
+                selectedVehicleFee.data.data.totalRate.RateDescription ?? 0,
+              unitNumber: selectedVehicle?.UnitNumber ?? "",
+            },
+            tpa: {
+              sourceCode: "Charter",
+              referral: "JSX",
+              agentID: "Inflight",
+            },
+            locationCode: pickupLocationCode ?? "",
+            totalRate: selectedVehicleFee.data.data.totalRate.TotalTM ?? "",
+            estimatedRate:
+              selectedVehicleFee.data.data.totalRate.EstimatedTotalAmount ?? "",
+            pickUpDateTime: formattedPickupDateTime ?? "",
+            returnDateTime: formattedReturnDateTime ?? "",
+          };
+
+          const createBooking = await axios.post(
+            "https://staging.carcierge.gorentals.com/go-app/create-booking",
+            bookingRequest,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (createBooking) {
+            console.log(
+              "selectedVehicleFee::::" +
+                JSON.stringify(createBooking.data.success)
+            ); // Only log the data
+
+            if (createBooking.data.success) {
+              botResponse = "Your booking has been confirmed!";
+            }
+          } else {
+            botResponse =
+              "Oops! Something went wrong while fetching vehicle information.";
+          }
+        }
+      } catch (error) {
+        console.error("Error in confirmation case:");
+
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error("Response data:", error.response.data);
+          console.error("Response status:", error.response.status);
+          console.error("Response headers:", error.response.headers);
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error("Request:", error.request);
+          console.error("Request method:", error.request.method);
+          console.error("Request url:", error.request.path);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error("Error message:", error.message);
+        }
+
+        botResponse =
+          "Oops! Something went wrong while fetching vehicle information.";
+      }
+
+      // if (
+      //   !isNaN(vehicleIndex) &&
+      //   vehicleIndex >= 0 &&
+      //   vehicleIndex < userSession.vehicleList.length
+      // ) {
+      //   bookingDetails.selectedVehicle = userSession.vehicleList[vehicleIndex];
+      //   botResponse = `You have selected: ${bookingDetails.selectedVehicle.mappedName}. Do you want to confirm the booking? (yes/no)`;
+      //   userSession.currentStep = "bookingConfirmation";
+      // } else {
+      //   botResponse =
+      //     "Invalid vehicle selection. Please enter the number of the vehicle you want to select.";
+      // }
+      break;
+    }
+
+    case "bookingConfirmation": {
+      const userInputLower = userInput.toLowerCase();
+      if (userInputLower === "yes") {
+        try {
+          await makeBookingRequest(bookingDetails);
+          botResponse = "Your booking has been confirmed!";
+          // Reset the user session or move to a "booking complete" state
+          userSessions.delete(userSession.userId);
+        } catch (error) {
+          console.error("Booking request error:", error);
+          botResponse = "Sorry, there was an error processing your booking.";
+        }
+      } else if (userInputLower === "no") {
+        botResponse = "Okay, you can select a different vehicle.";
+        userSession.currentStep = "vehicleSelection";
+      } else {
+        botResponse = "Please answer 'yes' or 'no'.";
       }
       break;
     }
