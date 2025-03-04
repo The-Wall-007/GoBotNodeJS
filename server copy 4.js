@@ -33,7 +33,7 @@ function findLocationMatch(input) {
 }
 
 // Fetch locations from API
-const fetchLocations = async () => {
+async function fetchLocations() {
   try {
     const response = await axios.get(
       "https://staging.carcierge.gorentals.com/go-app/location",
@@ -54,97 +54,7 @@ const fetchLocations = async () => {
   } catch (error) {
     console.error("Error fetching locations:", error);
   }
-};
-
-const getLocationCode = (locationValue) =>
-  validLocations.find((location) => location.value === locationValue)?.value;
-
-const formatDateTime = (date, time) => {
-  const [hours, minutes] = time.split(":");
-  date.setHours(hours);
-  date.setMinutes(minutes);
-  date.setSeconds(0);
-
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(date.getDate()).padStart(2, "0")}T${String(hours).padStart(
-    2,
-    "0"
-  )}:${String(minutes).padStart(2, "0")}:00`;
-};
-
-const fetchAvailableVehicles = async (
-  pickupLocationCode,
-  formattedPickupDateTime,
-  formattedReturnDateTime,
-  token
-) => {
-  const requestData = {
-    locationCode: pickupLocationCode,
-    pickupDate: formattedPickupDateTime,
-    returnDate: formattedReturnDateTime,
-    corpDiscountCode: "PAX",
-    type: "go-app",
-    travelProfileId: 1,
-  };
-
-  try {
-    const response = await axios.post(
-      "https://staging.carcierge.gorentals.com/go-app/available-vehicles",
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching available vehicles:", error);
-    return null;
-  }
-};
-
-const fetchVehicleFee = async (req, token) => {
-  try {
-    const response = await axios.post(
-      "https://staging.carcierge.gorentals.com/go-app/vehicles-fee",
-      req,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching vehicle fee:", error);
-    return null;
-  }
-};
-
-const createBooking = async (bookingRequest, token) => {
-  try {
-    const response = await axios.post(
-      "https://staging.carcierge.gorentals.com/go-app/create-booking",
-      bookingRequest,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error creating booking:", error);
-    return null;
-  }
-};
+}
 
 // Gemini AI chat
 async function runChat(userInput) {
@@ -188,7 +98,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-const extractLocationWithGemini = async (input) => {
+async function extractLocationWithGemini(input) {
   const prompt = `Extract the airport or location from the following text: "${input}"\nReturn only the location name, nothing else. If no location is found, return "null".`;
 
   try {
@@ -200,9 +110,8 @@ const extractLocationWithGemini = async (input) => {
     console.error("Error extracting location with Gemini:", error);
     return null;
   }
-};
-
-const extractDateWithGemini = async (input) => {
+}
+async function extractDateWithGemini(input) {
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split("T")[0];
 
@@ -219,9 +128,8 @@ const extractDateWithGemini = async (input) => {
     console.error("Error extracting date with Gemini:", error);
     return null;
   }
-};
-
-const extractTimeWithGemini = async (input) => {
+}
+async function extractTimeWithGemini(input) {
   const prompt = `Extract the time from the following text: "${input}". 
   Return only the time in HH:mm format (24-hour) if found. If no time is found, return "null".`;
 
@@ -234,29 +142,7 @@ const extractTimeWithGemini = async (input) => {
     console.error("Error extracting time with Gemini:", error);
     return null;
   }
-};
-
-const isValidDateTime = (dateStr, timeStr) => {
-  if (!dateStr || !timeStr) return false;
-  const dateTime = new Date(`${dateStr} ${timeStr}`);
-  return dateTime > new Date();
-};
-
-const isValidReturnDate = (pickupDate, returnDate) => {
-  if (!pickupDate || !returnDate) return true;
-  return new Date(returnDate) >= new Date(pickupDate);
-};
-
-const isValidReturnTime = (pickupDate, pickupTime, returnDate, returnTime) => {
-  if (!pickupDate || !pickupTime || !returnDate || !returnTime) return true;
-  if (pickupDate === returnDate) {
-    return (
-      new Date(`${returnDate} ${returnTime}`) >
-      new Date(`${pickupDate} ${pickupTime}`)
-    );
-  }
-  return true;
-};
+}
 
 // Booking step processor
 async function processBookingStep(userInput, userSession) {
@@ -367,14 +253,6 @@ async function processBookingStep(userInput, userSession) {
         bookingDetails.pickupDate &&
         bookingDetails.pickupTime
       ) {
-        if (
-          !isValidDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime)
-        ) {
-          botResponse = `The pickup date and time cannot be in the past. Please provide a valid pickup date and time.`;
-          userSession.currentStep = "pickupDate";
-          break;
-        }
-
         botResponse = `Great! Your pickup is scheduled at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}. Where and when would you like to return the vehicle?`;
         userSession.currentStep = "returnLocation"; // Move to next step
         break;
@@ -413,81 +291,9 @@ async function processBookingStep(userInput, userSession) {
         bookingDetails.returnDate &&
         bookingDetails.returnTime
       ) {
-        if (
-          !isValidDateTime(bookingDetails.returnDate, bookingDetails.returnTime)
-        ) {
-          botResponse = `The return date and time cannot be in the past. Please provide a valid return date and time.`;
-          userSession.currentStep = "returnDate";
-          break;
-        }
-
-        if (
-          !isValidReturnDate(
-            bookingDetails.pickupDate,
-            bookingDetails.returnDate
-          )
-        ) {
-          botResponse = `The return date cannot be earlier than the pickup date. Please enter a valid return date.`;
-          userSession.currentStep = "returnDate";
-          break;
-        }
-
-        if (
-          !isValidReturnTime(
-            bookingDetails.pickupDate,
-            bookingDetails.pickupTime,
-            bookingDetails.returnDate,
-            bookingDetails.returnTime
-          )
-        ) {
-          botResponse = `Since the return date is the same as the pickup date, the return time must be later than the pickup time. Please enter a valid return time.`;
-          userSession.currentStep = "returnTime";
-          break;
-        }
-
         botResponse = `Great! Your return is scheduled at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}`;
-        // userSession.currentStep = "confirmation"; // Move to next step
-        const userInputLower = userInput.toLowerCase();
-        // if (userInputLower === "yes") {
-        const pickupLocationCode = getLocationCode(
-          bookingDetails.pickupLocation.value
-        );
-        const returnLocationCode = getLocationCode(
-          bookingDetails.returnLocation.value
-        );
-        const formattedPickupDateTime = formatDateTime(
-          new Date(bookingDetails.pickupDate),
-          bookingDetails.pickupTime
-        );
-        const formattedReturnDateTime = formatDateTime(
-          new Date(bookingDetails.returnDate),
-          bookingDetails.returnTime
-        );
-
-        const vehicleListRes = await fetchAvailableVehicles(
-          pickupLocationCode,
-          formattedPickupDateTime,
-          formattedReturnDateTime,
-          token
-        );
-        if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
-          userSession.vehicleList = vehicleListRes.data.allVehicles;
-          console.log(
-            "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
-          );
-          botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
-            .map(
-              (vehicle) =>
-                `${vehicle.mappedName} - ${
-                  vehicle.category
-                } - $${vehicle.price.toFixed(2)}`
-            )
-            .join("\n")}`;
-          userSession.currentStep = "vehicleSelection";
-        } else {
-          botResponse =
-            "Sorry, no vehicles are available for your selected dates and locations.";
-        }
+        userSession.currentStep = "returnLocation"; // Move to next step
+        break;
       }
 
       break;
@@ -497,23 +303,158 @@ async function processBookingStep(userInput, userSession) {
   return botResponse;
 }
 
-// Restart conversation
-app.post("/restart", (req, res) => {
-  const { userId } = req.body;
-  if (!userId) {
-    return res.status(400).json({ error: "User ID is required" });
+async function processBookingStep(userInput, userSession) {
+  let botResponse = "";
+  const { bookingDetails, currentStep } = userSession;
+
+  function isValidDateTime(date, time) {
+    const now = new Date();
+    const dateTime = new Date(`${date} ${time}`);
+    return dateTime > now;
   }
 
-  // Clear the user's session
-  userSessions.set(userId, {
-    bookingDetails: {},
-    currentStep: "greeting",
-  });
+  function isReturnDateValid(pickupDate, returnDate) {
+    return new Date(returnDate) >= new Date(pickupDate);
+  }
 
-  res.json({
-    message: "Let me know how can I help you?",
-  });
-});
+  function isReturnTimeValid(pickupDate, pickupTime, returnDate, returnTime) {
+    if (pickupDate === returnDate) {
+      const pickupDateTime = new Date(`${pickupDate} ${pickupTime}`);
+      const returnDateTime = new Date(`${returnDate} ${returnTime}`);
+      return returnDateTime > pickupDateTime;
+    }
+    return true;
+  }
+
+  async function extractBookingInfo(input, isPickup) {
+    console.log("User Input:", input);
+
+    // Extract Location
+    const locationText = await extractLocationWithGemini(input);
+    if (locationText) {
+      const locationMatches = findLocationMatch(locationText);
+      if (locationMatches.length === 1) {
+        isPickup
+          ? (bookingDetails.pickupLocation = locationMatches[0])
+          : (bookingDetails.returnLocation = locationMatches[0]);
+      } else if (locationMatches.length > 1) {
+        isPickup
+          ? ((bookingDetails.pickupLocation = "multiple"),
+            (bookingDetails.pickupLocationMatches = locationMatches))
+          : ((bookingDetails.returnLocation = "multiple"),
+            (bookingDetails.returnLocationMatches = locationMatches));
+      }
+    }
+
+    // Extract Date
+    const extractedDate = await extractDateWithGemini(input);
+    if (extractedDate) {
+      isPickup
+        ? (bookingDetails.pickupDate = extractedDate)
+        : (bookingDetails.returnDate = extractedDate);
+    }
+
+    // Extract Time
+    const extractedTime = await extractTimeWithGemini(input);
+    if (extractedTime) {
+      isPickup
+        ? (bookingDetails.pickupTime = extractedTime)
+        : (bookingDetails.returnTime = extractedTime);
+    }
+
+    console.log("Updated booking details:", JSON.stringify(bookingDetails));
+    return bookingDetails;
+  }
+
+  switch (currentStep) {
+    case "greeting":
+      botResponse =
+        "Hi there! I am delighted to hear that you are traveling! Where will you be landing and when should we have your vehicle ready?";
+      userSession.currentStep = "pickupLocation";
+      break;
+
+    case "pickupLocation":
+    case "pickupDate":
+    case "pickupTime": {
+      await extractBookingInfo(userInput, true);
+
+      if (
+        bookingDetails.pickupDate &&
+        bookingDetails.pickupTime &&
+        !isValidDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime)
+      ) {
+        botResponse =
+          "The pickup date and time cannot be in the past. Please enter a valid pickup time.";
+        return botResponse;
+      }
+
+      if (
+        bookingDetails.pickupLocation &&
+        bookingDetails.pickupDate &&
+        bookingDetails.pickupTime
+      ) {
+        botResponse = `Great! Your pickup is scheduled at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}. Where and when would you like to return the vehicle?`;
+        userSession.currentStep = "returnLocation";
+      }
+      break;
+    }
+
+    case "returnLocation":
+    case "returnDate":
+    case "returnTime": {
+      await extractBookingInfo(userInput, false);
+
+      if (
+        bookingDetails.returnDate &&
+        bookingDetails.returnTime &&
+        !isValidDateTime(bookingDetails.returnDate, bookingDetails.returnTime)
+      ) {
+        botResponse =
+          "The return date and time cannot be in the past. Please enter a valid return time.";
+        return botResponse;
+      }
+
+      if (
+        bookingDetails.pickupDate &&
+        bookingDetails.returnDate &&
+        !isReturnDateValid(bookingDetails.pickupDate, bookingDetails.returnDate)
+      ) {
+        botResponse =
+          "The return date cannot be earlier than the pickup date. Please provide a valid return date.";
+        return botResponse;
+      }
+
+      if (
+        bookingDetails.pickupDate &&
+        bookingDetails.pickupTime &&
+        bookingDetails.returnDate &&
+        bookingDetails.returnTime &&
+        !isReturnTimeValid(
+          bookingDetails.pickupDate,
+          bookingDetails.pickupTime,
+          bookingDetails.returnDate,
+          bookingDetails.returnTime
+        )
+      ) {
+        botResponse =
+          "If returning on the same day, the return time must be later than the pickup time.";
+        return botResponse;
+      }
+
+      if (
+        bookingDetails.returnLocation &&
+        bookingDetails.returnDate &&
+        bookingDetails.returnTime
+      ) {
+        botResponse = `Great! Your return is scheduled at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}.`;
+        userSession.currentStep = "confirmBooking";
+      }
+      break;
+    }
+  }
+
+  return botResponse;
+}
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -523,5 +464,5 @@ app.get("/", (req, res) => {
 // Start server
 app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
-  await fetchLocations(); // Load locations on server start
+  await fetchLocations();
 });
