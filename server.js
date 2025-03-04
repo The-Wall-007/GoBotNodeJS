@@ -147,9 +147,9 @@ async function fetchLocations() {
 
     if (Array.isArray(response.data?.data?.locations)) {
       validLocations = response.data.data.locations;
-      console.log(
-        "Location list::::" + JSON.stringify(response.data.data.locations)
-      );
+      // console.log(
+      //   "Location list::::" + JSON.stringify(response.data.data.locations)
+      // );
       validLocationLabels = validLocations.map((loc) => loc.label);
     } else {
       throw new Error("Expected response.data.data.locations to be an array");
@@ -218,7 +218,16 @@ async function extractLocationWithGemini(input) {
   }
 }
 
-let extracted = {};
+const extractedInfo = {
+  pickupLocation: null,
+  pickupLocationMatches: [],
+  pickupDate: null,
+  pickupTime: null,
+  returnLocation: null,
+  returnLocationMatches: [],
+  returnDate: null,
+  returnTime: null,
+};
 
 // Booking step processor
 async function processBookingStep(userInput, userSession) {
@@ -233,43 +242,53 @@ async function processBookingStep(userInput, userSession) {
     if (locationText) {
       const locationMatches = findLocationMatch(locationText);
       if (locationMatches.length === 1) {
-        isPickup
-          ? (extracted.pickupLocation = locationMatches[0])
-          : (extracted.returnLocation = locationMatches[0]);
+        console.log("1");
+        if (isPickup) {
+          extractedInfo.pickupLocation = locationMatches[0];
+        } else {
+          extractedInfo.returnLocation = locationMatches[0];
+        }
       } else if (locationMatches.length > 1) {
-        isPickup
-          ? ((extracted.pickupLocation = "multiple"),
-            (extracted.pickupLocationMatches = locationMatches))
-          : ((extracted.returnLocation = "multiple"),
-            (extracted.returnLocationMatches = locationMatches));
+        console.log("2");
+        if (isPickup) {
+          extractedInfo.pickupLocation = "multiple";
+          extractedInfo.pickupLocationMatches = locationMatches;
+        } else {
+          extractedInfo.returnLocation = "multiple";
+          extractedInfo.returnLocationMatches = locationMatches;
+        }
       } else {
-        isPickup
-          ? (extracted.pickupLocation = null)
-          : (extracted.returnLocation = null);
+        console.log("3");
+        if (isPickup) {
+          extractedInfo.pickupLocation = locationMatches[0];
+        } else {
+          extractedInfo.returnLocation = locationMatches[0];
+        }
       }
     } else {
-      botResponse = `I'm here to assist you with your bookings. Could you please share the details of your request? I'd be happy to help!`;
+      botResponse =
+        "I'm here to assist you with your bookings. Could you please share the details of your request? I'd be happy to help!";
     }
 
     // 2. Date and Time (using chrono)
     const parsedDate = chrono.parseDate(input);
     if (parsedDate) {
       isPickup
-        ? ((extracted.pickupDate = format(parsedDate, "yyyy-MM-dd")),
-          (extracted.pickupTime = format(parsedDate, "HH:mm")))
-        : ((extracted.returnDate = format(parsedDate, "yyyy-MM-dd")),
-          (extracted.returnTime = format(parsedDate, "HH:mm")));
+        ? ((extractedInfo.pickupDate = format(parsedDate, "yyyy-MM-dd")),
+          (extractedInfo.pickupTime = format(parsedDate, "HH:mm")))
+        : ((extractedInfo.returnDate = format(parsedDate, "yyyy-MM-dd")),
+          (extractedInfo.returnTime = format(parsedDate, "HH:mm")));
     } else {
       const timeRegex = /(\d{1,2}:\d{2}(?:AM|PM)?)/i;
       const timeMatch = input.match(timeRegex);
       if (timeMatch) {
         isPickup
-          ? (extracted.pickupTime = timeMatch[1])
-          : (extracted.returnTime = timeMatch[1]);
+          ? (extractedInfo.pickupTime = timeMatch[1])
+          : (extractedInfo.returnTime = timeMatch[1]);
       }
     }
 
-    return extracted;
+    return extractedInfo;
   }
 
   switch (currentStep) {
@@ -287,6 +306,8 @@ async function processBookingStep(userInput, userSession) {
       console.log(
         "extractedInfo in pickup::::" + JSON.stringify(extractedInfo)
       );
+
+      console.log("prompts ::::" + userInput);
 
       if (extractedInfo.pickupLocation === "multiple") {
         botResponse = `I found multiple matches for your pickup location: ${extractedInfo.pickupLocationMatches
@@ -524,7 +545,50 @@ async function processBookingStep(userInput, userSession) {
         bookingDetails.returnTime
       ) {
         userSession.currentStep = "confirmation";
-        botResponse = `Got it! Your trip: Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}, returning to ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}. Confirm? (yes/no)`;
+        botResponse = `Got it! Your trip: Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}, returning to ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}.`;
+        // botResponse = `Got it! Your trip: Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}, returning to ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}. Confirm? (yes/no)`;
+
+        const pickupLocationCode = getLocationCode(
+          bookingDetails.pickupLocation.value
+        );
+
+        const returnLocationCode = getLocationCode(
+          bookingDetails.returnLocation.value
+        );
+        const formattedPickupDateTime = formatDateTime(
+          new Date(bookingDetails.pickupDate),
+          bookingDetails.pickupTime
+        );
+        const formattedReturnDateTime = formatDateTime(
+          new Date(bookingDetails.returnDate),
+          bookingDetails.returnTime
+        );
+
+        const vehicleListRes = await fetchAvailableVehicles(
+          pickupLocationCode,
+          formattedPickupDateTime,
+          formattedReturnDateTime,
+          token
+        );
+        if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
+          userSession.vehicleList = vehicleListRes.data.allVehicles;
+          console.log(
+            "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
+          );
+          botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
+            .map(
+              (vehicle) =>
+                `${vehicle.mappedName} - ${
+                  vehicle.category
+                } - $${vehicle.price.toFixed(2)}`
+            )
+            .join("\n")}`;
+          userSession.currentStep = "vehicleSelection";
+        } else {
+          botResponse =
+            // "Sorry, no vehicles are available for your selected dates and locations.";
+            "redirecting...";
+        }
         break; // Very important to break here
       } else if (bookingDetails.returnLocation && bookingDetails.returnDate) {
         userSession.currentStep = "returnTime";
@@ -593,54 +657,54 @@ async function processBookingStep(userInput, userSession) {
 
     case "confirmation": {
       const userInputLower = userInput.toLowerCase();
-      if (userInputLower === "yes") {
-        const pickupLocationCode = getLocationCode(
-          bookingDetails.pickupLocation.value
-        );
-        const returnLocationCode = getLocationCode(
-          bookingDetails.returnLocation.value
-        );
-        const formattedPickupDateTime = formatDateTime(
-          new Date(bookingDetails.pickupDate),
-          bookingDetails.pickupTime
-        );
-        const formattedReturnDateTime = formatDateTime(
-          new Date(bookingDetails.returnDate),
-          bookingDetails.returnTime
-        );
+      // if (userInputLower === "yes") {
+      const pickupLocationCode = getLocationCode(
+        bookingDetails.pickupLocation.value
+      );
+      const returnLocationCode = getLocationCode(
+        bookingDetails.returnLocation.value
+      );
+      const formattedPickupDateTime = formatDateTime(
+        new Date(bookingDetails.pickupDate),
+        bookingDetails.pickupTime
+      );
+      const formattedReturnDateTime = formatDateTime(
+        new Date(bookingDetails.returnDate),
+        bookingDetails.returnTime
+      );
 
-        const vehicleListRes = await fetchAvailableVehicles(
-          pickupLocationCode,
-          formattedPickupDateTime,
-          formattedReturnDateTime,
-          token
+      const vehicleListRes = await fetchAvailableVehicles(
+        pickupLocationCode,
+        formattedPickupDateTime,
+        formattedReturnDateTime,
+        token
+      );
+      if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
+        userSession.vehicleList = vehicleListRes.data.allVehicles;
+        console.log(
+          "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
         );
-        if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
-          userSession.vehicleList = vehicleListRes.data.allVehicles;
-          console.log(
-            "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
-          );
-          botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
-            .map(
-              (vehicle) =>
-                `${vehicle.mappedName} - ${
-                  vehicle.category
-                } - $${vehicle.price.toFixed(2)}`
-            )
-            .join("\n")}`;
-          userSession.currentStep = "vehicleSelection";
-        } else {
-          botResponse =
-            "Sorry, no vehicles are available for your selected dates and locations.";
-        }
+        botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
+          .map(
+            (vehicle) =>
+              `${vehicle.mappedName} - ${
+                vehicle.category
+              } - $${vehicle.price.toFixed(2)}`
+          )
+          .join("\n")}`;
+        userSession.currentStep = "vehicleSelection";
       } else {
         botResponse =
-          userInputLower === "no"
-            ? "Which detail would you like to change? (pickup location, pickup date, pickup time, return location, return date, return time)"
-            : "Please answer 'yes' or 'no' to confirm your booking.";
-        userSession.currentStep =
-          userInputLower === "no" ? "changeField" : userSession.currentStep;
+          "Sorry, no vehicles are available for your selected dates and locations.";
       }
+      // } else {
+      //   botResponse =
+      //     userInputLower === "no"
+      //       ? "Which detail would you like to change? (pickup location, pickup date, pickup time, return location, return date, return time)"
+      //       : "Please answer 'yes' or 'no' to confirm your booking.";
+      //   userSession.currentStep =
+      //     userInputLower === "no" ? "changeField" : userSession.currentStep;
+      // }
       break;
     }
 
