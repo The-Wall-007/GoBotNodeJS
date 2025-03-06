@@ -172,16 +172,17 @@ app.post("/chat", async (req, res) => {
 
     const userSession = userSessions.get(userId);
     let botResponse = await runChat(userInput);
+    let responseData; // Declare responseData
 
     try {
       const geminiJson = JSON.parse(botResponse);
       Object.assign(userSession.bookingDetails, geminiJson);
-      botResponse = await processBookingStep(userInput, userSession);
+      responseData = await processBookingStep(userInput, userSession); // Get responseData
     } catch (jsonError) {
-      botResponse = await processBookingStep(userInput, userSession);
+      responseData = await processBookingStep(userInput, userSession); // Get responseData
     }
 
-    res.json({ response: botResponse });
+    res.json(responseData);
   } catch (error) {
     console.error("Error in chat endpoint:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -192,10 +193,13 @@ const extractLocationWithGemini = async (input) => {
   const prompt = `Extract the airport or location from the following text: "${input}"\nReturn only the location name, nothing else. If no location is found, return "null".`;
 
   try {
-    const location = await runChat(prompt);
-    const trimmedLocation = location.trim();
+    const location = await runChat(prompt); // Reuse your runChat function
+    const trimmedLocation = location.trim(); // Trim whitespace
 
-    return trimmedLocation.toLowerCase() === "null" ? null : trimmedLocation;
+    if (trimmedLocation.toLowerCase() === "null") {
+      return null;
+    }
+    return trimmedLocation;
   } catch (error) {
     console.error("Error extracting location with Gemini:", error);
     return null;
@@ -260,7 +264,15 @@ const isValidReturnTime = (pickupDate, pickupTime, returnDate, returnTime) => {
 
 // Booking step processor
 async function processBookingStep(userInput, userSession) {
-  let botResponse = "";
+  const responseData = {
+    response: "",
+    vehicleList: [
+      // ... vehicle data
+    ],
+    bookingDetails: {
+      // ... booking details
+    },
+  };
   const { bookingDetails, currentStep } = userSession;
 
   async function extractBookingInfo(input, isPickup) {
@@ -297,7 +309,7 @@ async function processBookingStep(userInput, userSession) {
         }
       }
     } else if (!locationText && !bookingDetails.pickupLocation && isPickup) {
-      botResponse = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
+      responseData.response = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
         ", "
       )}`;
     }
@@ -332,7 +344,7 @@ async function processBookingStep(userInput, userSession) {
 
   switch (currentStep) {
     case "greeting":
-      botResponse =
+      responseData.response =
         "Hi there! I am delighted to hear that you are traveling! Where will you be landing and when should we have your vehicle ready?";
       userSession.currentStep = "pickupLocation";
       break;
@@ -343,7 +355,7 @@ async function processBookingStep(userInput, userSession) {
       await extractBookingInfo(userInput, true);
 
       if (bookingDetails.pickupLocation === "multiple") {
-        botResponse = `I found multiple matches for your pickup location: ${bookingDetails.pickupLocationMatches
+        responseData.response = `I found multiple matches for your pickup location: ${bookingDetails.pickupLocationMatches
           .map((loc) => loc.label)
           .join(", ")}. Please be more specific.`;
         userSession.currentStep = "pickupLocation";
@@ -352,13 +364,13 @@ async function processBookingStep(userInput, userSession) {
 
       if (bookingDetails.pickupLocation && !bookingDetails.pickupDate) {
         userSession.currentStep = "pickupDate";
-        botResponse = `Pickup location set to ${bookingDetails.pickupLocation.label}. What is the pickup date?`;
+        responseData.response = `Pickup location set to ${bookingDetails.pickupLocation.label}. What is the pickup date?`;
         break;
       }
 
       if (bookingDetails.pickupDate && !bookingDetails.pickupTime) {
         userSession.currentStep = "pickupTime";
-        botResponse = `Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate}. What time will you be picked up?`;
+        responseData.response = `Pickup at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate}. What time will you be picked up?`;
         break;
       }
 
@@ -370,12 +382,12 @@ async function processBookingStep(userInput, userSession) {
         if (
           !isValidDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime)
         ) {
-          botResponse = `The pickup date and time cannot be in the past. Please provide a valid pickup date and time.`;
+          responseData.response = `The pickup date and time cannot be in the past. Please provide a valid pickup date and time.`;
           userSession.currentStep = "pickupDate";
           break;
         }
 
-        botResponse = `Great! Your pickup is scheduled at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}. Where and when would you like to return the vehicle?`;
+        responseData.response = `Great! Your pickup is scheduled at ${bookingDetails.pickupLocation.label} on ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime}. Where and when would you like to return the vehicle?`;
         userSession.currentStep = "returnLocation"; // Move to next step
         break;
       }
@@ -389,7 +401,7 @@ async function processBookingStep(userInput, userSession) {
       await extractBookingInfo(userInput, false);
 
       if (bookingDetails.returnLocation === "multiple") {
-        botResponse = `I found multiple matches for your Return location: ${bookingDetails.returnLocationMatches
+        responseData.response = `I found multiple matches for your Return location: ${bookingDetails.returnLocationMatches
           .map((loc) => loc.label)
           .join(", ")}. Please be more specific.`;
         userSession.currentStep = "returnLocation";
@@ -398,13 +410,13 @@ async function processBookingStep(userInput, userSession) {
 
       if (bookingDetails.returnLocation && !bookingDetails.returnDate) {
         userSession.currentStep = "returnDate";
-        botResponse = `Return location set to ${bookingDetails.returnLocation.label}. What is the return date?`;
+        responseData.response = `Return location set to ${bookingDetails.returnLocation.label}. What is the return date?`;
         break;
       }
 
       if (bookingDetails.returnDate && !bookingDetails.returnTime) {
         userSession.currentStep = "returnTime";
-        botResponse = `Return at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate}. What time will you be return?`;
+        responseData.response = `Return at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate}. What time will you be return?`;
         break;
       }
 
@@ -416,7 +428,7 @@ async function processBookingStep(userInput, userSession) {
         if (
           !isValidDateTime(bookingDetails.returnDate, bookingDetails.returnTime)
         ) {
-          botResponse = `The return date and time cannot be in the past. Please provide a valid return date and time.`;
+          responseData.response = `The return date and time cannot be in the past. Please provide a valid return date and time.`;
           userSession.currentStep = "returnDate";
           break;
         }
@@ -427,7 +439,7 @@ async function processBookingStep(userInput, userSession) {
             bookingDetails.returnDate
           )
         ) {
-          botResponse = `The return date cannot be earlier than the pickup date. Please enter a valid return date.`;
+          responseData.response = `The return date cannot be earlier than the pickup date. Please enter a valid return date.`;
           userSession.currentStep = "returnDate";
           break;
         }
@@ -440,12 +452,12 @@ async function processBookingStep(userInput, userSession) {
             bookingDetails.returnTime
           )
         ) {
-          botResponse = `Since the return date is the same as the pickup date, the return time must be later than the pickup time. Please enter a valid return time.`;
+          responseData.response = `Since the return date is the same as the pickup date, the return time must be later than the pickup time. Please enter a valid return time.`;
           userSession.currentStep = "returnTime";
           break;
         }
 
-        botResponse = `Great! Your return is scheduled at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}`;
+        responseData.response = `Great! Your return is scheduled at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}`;
         // userSession.currentStep = "confirmation"; // Move to next step
         const userInputLower = userInput.toLowerCase();
         // if (userInputLower === "yes") {
@@ -464,37 +476,143 @@ async function processBookingStep(userInput, userSession) {
           bookingDetails.returnTime
         );
 
-        const vehicleListRes = await fetchAvailableVehicles(
-          pickupLocationCode,
-          formattedPickupDateTime,
-          formattedReturnDateTime,
-          token
-        );
-        if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
-          userSession.vehicleList = vehicleListRes.data.allVehicles;
-          console.log(
-            "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
-          );
-          botResponse = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
-            .map(
-              (vehicle) =>
-                `${vehicle.mappedName} - ${
-                  vehicle.category
-                } - $${vehicle.price.toFixed(2)}`
-            )
-            .join("\n")}`;
-          userSession.currentStep = "vehicleSelection";
-        } else {
-          botResponse =
-            "Sorry, no vehicles are available for your selected dates and locations.";
-        }
+        responseData.vehicleList = [
+          {
+            id: 1,
+            make: "Tesla",
+            model: "Model S",
+            year: 2023,
+            color: "Red",
+            engine: "Electric",
+            horsepower: 670,
+            seats: 5,
+            price: 89999,
+            fuelType: "Electric",
+            transmission: "Automatic",
+            mileage: "0 miles",
+            features: [
+              "Autopilot",
+              "Full Self-Driving",
+              "Long Range",
+              "Panoramic Roof",
+            ],
+            imageUri: "https://picsum.photos/200/300",
+          },
+          {
+            id: 2,
+            make: "Toyota",
+            model: "Camry",
+            year: 2022,
+            color: "White",
+            engine: "2.5L 4-cylinder",
+            horsepower: 203,
+            seats: 5,
+            price: 27999,
+            fuelType: "Gasoline",
+            transmission: "Automatic",
+            mileage: "10,000 miles",
+            features: [
+              "Adaptive Cruise Control",
+              "Lane Keep Assist",
+              "Android Auto",
+            ],
+            imageUri: "https://picsum.photos/200/300",
+          },
+          {
+            id: 3,
+            make: "BMW",
+            model: "X5",
+            year: 2023,
+            color: "Black",
+            engine: "3.0L TwinPower Turbo",
+            horsepower: 335,
+            seats: 5,
+            price: 61999,
+            fuelType: "Gasoline",
+            transmission: "Automatic",
+            mileage: "5,000 miles",
+            features: [
+              "All-Wheel Drive",
+              "Leather Interior",
+              "Wireless Charging",
+            ],
+            imageUri: "https://picsum.photos/200/300",
+          },
+          {
+            id: 4,
+            make: "Ford",
+            model: "Mustang",
+            year: 2021,
+            color: "Blue",
+            engine: "5.0L V8",
+            horsepower: 450,
+            seats: 4,
+            price: 55999,
+            fuelType: "Gasoline",
+            transmission: "Manual",
+            mileage: "15,000 miles",
+            features: [
+              "Rear-Wheel Drive",
+              "Apple CarPlay",
+              "Performance Package",
+            ],
+            imageUri: "https://picsum.photos/200/300",
+          },
+          {
+            id: 5,
+            make: "Honda",
+            model: "Civic",
+            year: 2022,
+            color: "Gray",
+            engine: "1.5L Turbocharged 4-cylinder",
+            horsepower: 180,
+            seats: 5,
+            price: 25999,
+            fuelType: "Gasoline",
+            transmission: "CVT",
+            mileage: "8,000 miles",
+            features: [
+              "Honda Sensing",
+              "Fuel Efficient",
+              "Touchscreen Display",
+            ],
+            imageUri: "https://picsum.photos/200/300",
+          },
+        ];
+
+        // const vehicleListRes = await fetchAvailableVehicles(
+        //   pickupLocationCode,
+        //   formattedPickupDateTime,
+        //   formattedReturnDateTime,
+        //   token
+        // );
+        // if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
+        //   // userSession.vehicleList = vehicleListRes.data.allVehicles;
+
+        //   console.log(
+        //     "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
+        //   );
+        //   responseData.response = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
+        //     .map(
+        //       (vehicle) =>
+        //         `${vehicle.mappedName} - ${
+        //           vehicle.category
+        //         } - $${vehicle.price.toFixed(2)}`
+        //     )
+        //     .join("\n")}`;
+        //   userSession.currentStep = "vehicleSelection";
+        // } else {
+        //   responseData.response =
+        //     "Sorry, no vehicles are available for your selected dates and locations.";
+        // }
       }
 
       break;
     }
   }
 
-  return botResponse;
+  responseData.bookingDetails = bookingDetails;
+  return responseData;
 }
 
 // Restart conversation
