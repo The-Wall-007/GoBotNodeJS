@@ -190,7 +190,7 @@ app.post("/chat", async (req, res) => {
 });
 
 const extractLocationWithGemini = async (input) => {
-  const prompt = `Extract the airport or location from the following text: "${input}"\nReturn only the location name, nothing else. If no location is found, return "null".`;
+  const prompt = `Extract the airport or location from the following text: "${input}"\n\nReturn only the location name, nothing else. If no location is found, return "null".`;
 
   try {
     const location = await runChat(prompt); // Reuse your runChat function
@@ -272,6 +272,7 @@ async function processBookingStep(userInput, userSession) {
     bookingDetails: {
       // ... booking details
     },
+    currentStep: "",
   };
   const { bookingDetails, currentStep } = userSession;
 
@@ -456,158 +457,199 @@ async function processBookingStep(userInput, userSession) {
           userSession.currentStep = "returnTime";
           break;
         }
-
         responseData.response = `Great! Your return is scheduled at ${bookingDetails.returnLocation.label} on ${bookingDetails.returnDate} at ${bookingDetails.returnTime}`;
-        // userSession.currentStep = "confirmation"; // Move to next step
-        const userInputLower = userInput.toLowerCase();
-        // if (userInputLower === "yes") {
-        const pickupLocationCode = getLocationCode(
-          bookingDetails.pickupLocation.value
-        );
-        const returnLocationCode = getLocationCode(
-          bookingDetails.returnLocation.value
-        );
-        const formattedPickupDateTime = formatDateTime(
-          new Date(bookingDetails.pickupDate),
-          bookingDetails.pickupTime
-        );
-        const formattedReturnDateTime = formatDateTime(
-          new Date(bookingDetails.returnDate),
-          bookingDetails.returnTime
-        );
+        userSession.currentStep = "confirmation";
+      }
+    }
 
-        responseData.vehicleList = [
-          {
-            id: 1,
-            make: "Tesla",
-            model: "Model S",
-            year: 2023,
-            color: "Red",
-            engine: "Electric",
-            horsepower: 670,
-            seats: 5,
-            price: 89999,
-            fuelType: "Electric",
-            transmission: "Automatic",
-            mileage: "0 miles",
-            features: [
-              "Autopilot",
-              "Full Self-Driving",
-              "Long Range",
-              "Panoramic Roof",
-            ],
-            imageUri: "https://picsum.photos/200/300",
-          },
-          {
-            id: 2,
-            make: "Toyota",
-            model: "Camry",
-            year: 2022,
-            color: "White",
-            engine: "2.5L 4-cylinder",
-            horsepower: 203,
-            seats: 5,
-            price: 27999,
-            fuelType: "Gasoline",
-            transmission: "Automatic",
-            mileage: "10,000 miles",
-            features: [
-              "Adaptive Cruise Control",
-              "Lane Keep Assist",
-              "Android Auto",
-            ],
-            imageUri: "https://picsum.photos/200/300",
-          },
-          {
-            id: 3,
-            make: "BMW",
-            model: "X5",
-            year: 2023,
-            color: "Black",
-            engine: "3.0L TwinPower Turbo",
-            horsepower: 335,
-            seats: 5,
-            price: 61999,
-            fuelType: "Gasoline",
-            transmission: "Automatic",
-            mileage: "5,000 miles",
-            features: [
-              "All-Wheel Drive",
-              "Leather Interior",
-              "Wireless Charging",
-            ],
-            imageUri: "https://picsum.photos/200/300",
-          },
-          {
-            id: 4,
-            make: "Ford",
-            model: "Mustang",
-            year: 2021,
-            color: "Blue",
-            engine: "5.0L V8",
-            horsepower: 450,
-            seats: 4,
-            price: 55999,
-            fuelType: "Gasoline",
-            transmission: "Manual",
-            mileage: "15,000 miles",
-            features: [
-              "Rear-Wheel Drive",
-              "Apple CarPlay",
-              "Performance Package",
-            ],
-            imageUri: "https://picsum.photos/200/300",
-          },
-          {
-            id: 5,
-            make: "Honda",
-            model: "Civic",
-            year: 2022,
-            color: "Gray",
-            engine: "1.5L Turbocharged 4-cylinder",
-            horsepower: 180,
-            seats: 5,
-            price: 25999,
-            fuelType: "Gasoline",
-            transmission: "CVT",
-            mileage: "8,000 miles",
-            features: [
-              "Honda Sensing",
-              "Fuel Efficient",
-              "Touchscreen Display",
-            ],
-            imageUri: "https://picsum.photos/200/300",
-          },
-        ];
+    case "confirmation": {
+      console.log("coming here");
+      // if (userInputLower === "yes") {
+      const pickupLocationCode = getLocationCode(
+        bookingDetails.pickupLocation.value
+      );
+      const returnLocationCode = getLocationCode(
+        bookingDetails.returnLocation.value
+      );
+      const formattedPickupDateTime = formatDateTime(
+        new Date(bookingDetails.pickupDate),
+        bookingDetails.pickupTime
+      );
+      const formattedReturnDateTime = formatDateTime(
+        new Date(bookingDetails.returnDate),
+        bookingDetails.returnTime
+      );
 
-        // const vehicleListRes = await fetchAvailableVehicles(
-        //   pickupLocationCode,
-        //   formattedPickupDateTime,
-        //   formattedReturnDateTime,
-        //   token
-        // );
-        // if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
-        //   // userSession.vehicleList = vehicleListRes.data.allVehicles;
+      responseData.vehicleList = [
+        {
+          id: 1,
+          make: "Tesla",
+          model: "Model S",
+          year: 2023,
+          color: "Red",
+          engine: "Electric",
+          horsepower: 670,
+          seats: 5,
+          price: 89999,
+          fuelType: "Electric",
+          transmission: "Automatic",
+          mileage: "0 miles",
+          features: [
+            "Autopilot",
+            "Full Self-Driving",
+            "Long Range",
+            "Panoramic Roof",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 2,
+          make: "Toyota",
+          model: "Camry",
+          year: 2022,
+          color: "White",
+          engine: "2.5L 4-cylinder",
+          horsepower: 203,
+          seats: 5,
+          price: 27999,
+          fuelType: "Gasoline",
+          transmission: "Automatic",
+          mileage: "10,000 miles",
+          features: [
+            "Adaptive Cruise Control",
+            "Lane Keep Assist",
+            "Android Auto",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 3,
+          make: "BMW",
+          model: "X5",
+          year: 2023,
+          color: "Black",
+          engine: "3.0L TwinPower Turbo",
+          horsepower: 335,
+          seats: 5,
+          price: 61999,
+          fuelType: "Gasoline",
+          transmission: "Automatic",
+          mileage: "5,000 miles",
+          features: [
+            "All-Wheel Drive",
+            "Leather Interior",
+            "Wireless Charging",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 4,
+          make: "Ford",
+          model: "Mustang",
+          year: 2021,
+          color: "Blue",
+          engine: "5.0L V8",
+          horsepower: 450,
+          seats: 4,
+          price: 55999,
+          fuelType: "Gasoline",
+          transmission: "Manual",
+          mileage: "15,000 miles",
+          features: [
+            "Rear-Wheel Drive",
+            "Apple CarPlay",
+            "Performance Package",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 5,
+          make: "Honda",
+          model: "Civic",
+          year: 2022,
+          color: "Gray",
+          engine: "1.5L Turbocharged 4-cylinder",
+          horsepower: 180,
+          seats: 5,
+          price: 25999,
+          fuelType: "Gasoline",
+          transmission: "CVT",
+          mileage: "8,000 miles",
+          features: ["Honda Sensing", "Fuel Efficient", "Touchscreen Display"],
+          imageUri: "https://picsum.photos/200/300",
+        },
+      ];
 
-        //   console.log(
-        //     "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
-        //   );
-        //   responseData.response = `Great! Here’s a list of available vehicles:\n${vehicleListRes.data.allVehicles
-        //     .map(
-        //       (vehicle) =>
-        //         `${vehicle.mappedName} - ${
-        //           vehicle.category
-        //         } - $${vehicle.price.toFixed(2)}`
-        //     )
-        //     .join("\n")}`;
-        //   userSession.currentStep = "vehicleSelection";
-        // } else {
-        //   responseData.response =
-        //     "Sorry, no vehicles are available for your selected dates and locations.";
-        // }
+      const vehicleListRes = await fetchAvailableVehicles(
+        pickupLocationCode,
+        formattedPickupDateTime,
+        formattedReturnDateTime,
+        token
+      );
+      if (vehicleListRes?.success && vehicleListRes.data.allVehicles) {
+        // userSession.vehicleList = vehicleListRes.data.allVehicles;
+
+        console.log(
+          "Vehicle list::::" + JSON.stringify(vehicleListRes.data.allVehicles)
+        );
+        // responseData.response = `Great! Here’s a list of available vehicles:\n\n${vehicleListRes.data.allVehicles
+        //   .map(
+        //     (vehicle) =>
+        //       `${vehicle.mappedName} - ${
+        //         vehicle.category
+        //       } - $${vehicle.price.toFixed(2)}`
+        //   )
+        //   .join("\n\n")}`;
+        // userSession.currentStep = "vehicleSelection";
+
+        responseData.vehicleList = vehicleListRes.data.allVehicles;
+        userSession.currentStep = "updateReservation";
+      } else {
+        responseData.response =
+          "Sorry, no vehicles are available for your selected dates and locations.";
+        userSession.currentStep = "updateReservation";
       }
 
       break;
+    }
+
+    case "updateReservation": {
+      responseData.response = `We are grateful to you for trusting us with your reservation.\n\nBy way of confirmation, do the following details look correct?\n\nPickup ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime} ${bookingDetails.pickupLocation.label}\n\nReturn ${bookingDetails.returnDate} at ${bookingDetails.returnTime} ${bookingDetails.returnLocation.label}`;
+      responseData.currentStep = "updateReservation";
+      userSession.currentStep = "updateInfo";
+      break;
+    }
+
+    case "updateInfo": {
+      console.log("currentStep::::" + currentStep); // Debugging
+
+      const userInputLower = userInput.toLowerCase().trim(); // Added trim()
+      console.log("userInput::::" + userInput); //debugging
+      console.log("userInputLower::::" + userInputLower); // Debugging
+
+      if (userInputLower === "confirm") {
+        userSession.currentStep = "confirmation";
+        console.log(
+          "userSession.currentStep set to confirmation" +
+            userSession.currentStep
+        ); // Debugging
+        // break;
+      } else if (userInputLower === "edit") {
+        responseData.response =
+          "Which field would you like to edit? (pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime)";
+        userSession.currentStep = "updateFieldSelection";
+        break;
+      } else if (userInputLower === "cancel") {
+        responseData.response = "Booking canceled.";
+        userSession.currentStep = "greeting";
+        break;
+      } else {
+        responseData.response = "Please input 'confirm', 'edit', or 'cancel'.";
+        break;
+      }
+    }
+
+    case "updateFieldSelection": {
     }
   }
 
