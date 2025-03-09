@@ -480,105 +480,105 @@ async function processBookingStep(userInput, userSession) {
         bookingDetails.returnTime
       );
 
-      // responseData.vehicleList = [
-      //   {
-      //     id: 1,
-      //     make: "Tesla",
-      //     model: "Model S",
-      //     year: 2023,
-      //     color: "Red",
-      //     engine: "Electric",
-      //     horsepower: 670,
-      //     seats: 5,
-      //     price: 89999,
-      //     fuelType: "Electric",
-      //     transmission: "Automatic",
-      //     mileage: "0 miles",
-      //     features: [
-      //       "Autopilot",
-      //       "Full Self-Driving",
-      //       "Long Range",
-      //       "Panoramic Roof",
-      //     ],
-      //     imageUri: "https://picsum.photos/200/300",
-      //   },
-      //   {
-      //     id: 2,
-      //     make: "Toyota",
-      //     model: "Camry",
-      //     year: 2022,
-      //     color: "White",
-      //     engine: "2.5L 4-cylinder",
-      //     horsepower: 203,
-      //     seats: 5,
-      //     price: 27999,
-      //     fuelType: "Gasoline",
-      //     transmission: "Automatic",
-      //     mileage: "10,000 miles",
-      //     features: [
-      //       "Adaptive Cruise Control",
-      //       "Lane Keep Assist",
-      //       "Android Auto",
-      //     ],
-      //     imageUri: "https://picsum.photos/200/300",
-      //   },
-      //   {
-      //     id: 3,
-      //     make: "BMW",
-      //     model: "X5",
-      //     year: 2023,
-      //     color: "Black",
-      //     engine: "3.0L TwinPower Turbo",
-      //     horsepower: 335,
-      //     seats: 5,
-      //     price: 61999,
-      //     fuelType: "Gasoline",
-      //     transmission: "Automatic",
-      //     mileage: "5,000 miles",
-      //     features: [
-      //       "All-Wheel Drive",
-      //       "Leather Interior",
-      //       "Wireless Charging",
-      //     ],
-      //     imageUri: "https://picsum.photos/200/300",
-      //   },
-      //   {
-      //     id: 4,
-      //     make: "Ford",
-      //     model: "Mustang",
-      //     year: 2021,
-      //     color: "Blue",
-      //     engine: "5.0L V8",
-      //     horsepower: 450,
-      //     seats: 4,
-      //     price: 55999,
-      //     fuelType: "Gasoline",
-      //     transmission: "Manual",
-      //     mileage: "15,000 miles",
-      //     features: [
-      //       "Rear-Wheel Drive",
-      //       "Apple CarPlay",
-      //       "Performance Package",
-      //     ],
-      //     imageUri: "https://picsum.photos/200/300",
-      //   },
-      //   {
-      //     id: 5,
-      //     make: "Honda",
-      //     model: "Civic",
-      //     year: 2022,
-      //     color: "Gray",
-      //     engine: "1.5L Turbocharged 4-cylinder",
-      //     horsepower: 180,
-      //     seats: 5,
-      //     price: 25999,
-      //     fuelType: "Gasoline",
-      //     transmission: "CVT",
-      //     mileage: "8,000 miles",
-      //     features: ["Honda Sensing", "Fuel Efficient", "Touchscreen Display"],
-      //     imageUri: "https://picsum.photos/200/300",
-      //   },
-      // ];
+      responseData.vehicleList = [
+        {
+          id: 1,
+          make: "Tesla",
+          model: "Model S",
+          year: 2023,
+          color: "Red",
+          engine: "Electric",
+          horsepower: 670,
+          seats: 5,
+          price: 89999,
+          fuelType: "Electric",
+          transmission: "Automatic",
+          mileage: "0 miles",
+          features: [
+            "Autopilot",
+            "Full Self-Driving",
+            "Long Range",
+            "Panoramic Roof",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 2,
+          make: "Toyota",
+          model: "Camry",
+          year: 2022,
+          color: "White",
+          engine: "2.5L 4-cylinder",
+          horsepower: 203,
+          seats: 5,
+          price: 27999,
+          fuelType: "Gasoline",
+          transmission: "Automatic",
+          mileage: "10,000 miles",
+          features: [
+            "Adaptive Cruise Control",
+            "Lane Keep Assist",
+            "Android Auto",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 3,
+          make: "BMW",
+          model: "X5",
+          year: 2023,
+          color: "Black",
+          engine: "3.0L TwinPower Turbo",
+          horsepower: 335,
+          seats: 5,
+          price: 61999,
+          fuelType: "Gasoline",
+          transmission: "Automatic",
+          mileage: "5,000 miles",
+          features: [
+            "All-Wheel Drive",
+            "Leather Interior",
+            "Wireless Charging",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 4,
+          make: "Ford",
+          model: "Mustang",
+          year: 2021,
+          color: "Blue",
+          engine: "5.0L V8",
+          horsepower: 450,
+          seats: 4,
+          price: 55999,
+          fuelType: "Gasoline",
+          transmission: "Manual",
+          mileage: "15,000 miles",
+          features: [
+            "Rear-Wheel Drive",
+            "Apple CarPlay",
+            "Performance Package",
+          ],
+          imageUri: "https://picsum.photos/200/300",
+        },
+        {
+          id: 5,
+          make: "Honda",
+          model: "Civic",
+          year: 2022,
+          color: "Gray",
+          engine: "1.5L Turbocharged 4-cylinder",
+          horsepower: 180,
+          seats: 5,
+          price: 25999,
+          fuelType: "Gasoline",
+          transmission: "CVT",
+          mileage: "8,000 miles",
+          features: ["Honda Sensing", "Fuel Efficient", "Touchscreen Display"],
+          imageUri: "https://picsum.photos/200/300",
+        },
+      ];
 
       const vehicleListRes = await fetchAvailableVehicles(
         pickupLocationCode,
@@ -620,372 +620,112 @@ async function processBookingStep(userInput, userSession) {
       break;
     }
 
-    // case "updateInfo": {
-    //   console.log("currentStep::::" + currentStep); // Debugging
-
-    //   const userInputLower = userInput.toLowerCase().trim(); // Added trim()
-    //   console.log("userInput::::" + userInput); //debugging
-    //   console.log("userInputLower::::" + userInputLower); // Debugging
-
-    //   if (userInputLower === "confirm") {
-    //     userSession.currentStep = "confirmation";
-    //     console.log(
-    //       "userSession.currentStep set to confirmation" +
-    //         userSession.currentStep
-    //     ); // Debugging
-    //     // break;
-    //   } else if (userInputLower === "edit") {
-    //     responseData.response =
-    //       "Which field would you like to edit? (pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime)";
-    //     userSession.currentStep = "updateFieldSelection";
-    //     break;
-    //   } else if (userInputLower === "cancel") {
-    //     responseData.response = "Booking canceled.";
-    //     userSession.currentStep = "greeting";
-    //     break;
-    //   } else {
-    //     responseData.response = "Please input 'confirm', 'edit', or 'cancel'.";
-    //     break;
-    //   }
-    // }
-
-    // case "updateFieldSelection": {
-    //   const fieldToUpdate = userInput.toLowerCase();
-    //   let updates = {};
-    //   let errors = [];
-
-    //   try {
-    //     // 1. Intent Recognition: Identify fields to update
-    //     const intentPrompt = `From the following text: "${fieldToUpdate}", list the fields the user wants to change. Possible fields: pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime. Return only the list of fields, separated by commas.`;
-
-    //     console.log("Intent Prompt:", intentPrompt);
-    //     const intentResponse = await runChat(intentPrompt);
-    //     const fieldsToChange = intentResponse
-    //       .split(",")
-    //       .map((field) => field.trim());
-
-    //     console.log("Fields to change:", fieldsToChange);
-
-    //     if (!fieldsToChange.length) {
-    //       responseData.response =
-    //         "I couldn't determine which field to update. Please specify.";
-    //       userSession.currentStep = "updateFieldSelection";
-    //       return responseData;
-    //     }
-
-    //     // 2. Extract New Values
-    //     for (const field of fieldsToChange) {
-    //       if (!bookingDetails.hasOwnProperty(field)) {
-    //         errors.push(`Invalid field: ${field}`);
-    //         continue;
-    //       }
-
-    //       let newValue = null;
-
-    //       if (["pickupLocation", "returnLocation"].includes(field)) {
-    //         const locationText = await extractLocationWithGemini(userInput);
-    //         if (locationText) {
-    //           const locationMatches = findLocationMatch(locationText);
-    //           console.log(`Location matches for ${field}:`, locationMatches);
-
-    //           if (locationMatches.length === 1) {
-    //             newValue = locationMatches[0]; // Single match, update directly
-    //           } else if (locationMatches.length > 1) {
-    //             newValue = "multiple"; // Multiple matches, ask for clarification
-    //             responseData.response = `Multiple locations found for "${field}". Please choose from: ${locationMatches.join(
-    //               ", "
-    //             )}.`;
-    //           } else {
-    //             errors.push(
-    //               `I couldn't find a matching location for ${field}.`
-    //             );
-    //           }
-    //         }
-    //       } else if (["pickupDate", "returnDate"].includes(field)) {
-    //         newValue = await extractDateWithGemini(userInput);
-    //         if (!newValue)
-    //           errors.push(`I couldn't find a valid date for ${field}.`);
-    //       } else if (["pickupTime", "returnTime"].includes(field)) {
-    //         newValue = await extractTimeWithGemini(userInput);
-    //         if (!newValue)
-    //           errors.push(`I couldn't find a valid time for ${field}.`);
-    //       }
-
-    //       if (newValue) {
-    //         updates[field] = newValue;
-    //       }
-    //     }
-
-    //     // 3. Handle Errors
-    //     if (errors.length > 0) {
-    //       responseData.response = errors.join("\n");
-    //       userSession.currentStep = "updateFieldSelection";
-    //       return responseData;
-    //     }
-
-    //     // 4. Update Booking Details
-    //     Object.assign(bookingDetails, updates);
-
-    //     // 5. Ask for Confirmation
-    //     responseData.response =
-    //       `Updated booking details:\n\n` +
-    //       `Pickup: ${bookingDetails.pickupDate} at ${
-    //         bookingDetails.pickupTime
-    //       } ${bookingDetails.pickupLocation?.label || "Not set"}\n` +
-    //       `Return: ${bookingDetails.returnDate} at ${
-    //         bookingDetails.returnTime
-    //       } ${bookingDetails.returnLocation?.label || "Not set"}\n\n` +
-    //       `Do you want to confirm these changes? (confirm/edit/cancel)`;
-
-    //     userSession.currentStep = "updateInfo";
-    //   } catch (error) {
-    //     console.error("Error updating fields:", error);
-    //     responseData.response =
-    //       "Sorry, I couldn't process your request. Please try again.";
-    //     userSession.currentStep = "updateFieldSelection";
-    //   }
-
-    //   break;
-    // }
-
     case "updateInfo": {
-      console.log("currentStep::::" + currentStep);
+      console.log("currentStep::::" + currentStep); // Debugging
 
-      const userInputLower = userInput.toLowerCase().trim();
-      console.log("userInput::::" + userInput);
-      console.log("userInputLower::::" + userInputLower);
+      const userInputLower = userInput.toLowerCase().trim(); // Added trim()
+      console.log("userInput::::" + userInput); //debugging
+      console.log("userInputLower::::" + userInputLower); // Debugging
 
       if (userInputLower === "confirm") {
         userSession.currentStep = "confirmation";
         console.log(
           "userSession.currentStep set to confirmation" +
             userSession.currentStep
-        );
+        ); // Debugging
+        // break;
       } else if (userInputLower === "edit") {
         responseData.response =
           "Which field would you like to edit? (pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime)";
         userSession.currentStep = "updateFieldSelection";
+        break;
       } else if (userInputLower === "cancel") {
         responseData.response = "Booking canceled.";
         userSession.currentStep = "greeting";
+        break;
       } else {
         responseData.response = "Please input 'confirm', 'edit', or 'cancel'.";
+        break;
       }
-      break;
     }
 
     case "updateFieldSelection": {
+      const fieldToUpdate = userInput.toLowerCase();
+
+      // 1. Intent Recognition: Identify which fields to change
+      const intentPrompt = `From the following text: "${userInput}", list the fields the user wants to change. Possible fields: pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime. Return only the list of fields, separated by commas.`;
+
       try {
-        const intentPrompt = `From the following text: "${userInput}", extract the fields and their new values. Return a JSON object where the keys are the fields (pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime) and the values are the new values. If a field is not mentioned, omit it from the JSON. If there is no value related to the field, return null.`;
-
-        console.log("Intent Prompt:", intentPrompt);
         const intentResponse = await runChat(intentPrompt);
-
-        console.log("Intent Response:", intentResponse);
+        const fieldsToChange = intentResponse
+          .split(",")
+          .map((field) => field.trim());
 
         let updates = {};
-        try {
-          updates = JSON.parse(intentResponse);
-        } catch (error) {
-          responseData.response =
-            "Sorry, I couldn't understand your request. Please specify the fields and values you want to change.";
-          userSession.currentStep = "updateFieldSelection";
-          return responseData;
-        }
-
         let errors = [];
 
-        for (const field in updates) {
-          if (!bookingDetails.hasOwnProperty(field)) {
-            errors.push(`Invalid field: ${field}`);
-            continue;
-          }
+        // 2. Value Extraction: Get new values for each field
+        for (const field of fieldsToChange) {
+          if (bookingDetails.hasOwnProperty(field)) {
+            let newValue = null;
 
-          let newValue = updates[field];
-
-          if (newValue === null) {
-            continue; // Skip fields with null values
-          }
-
-          if (["pickupLocation", "returnLocation"].includes(field)) {
-            const locationMatches = findLocationMatch(newValue);
-            if (locationMatches.length === 1) {
-              updates[field] = locationMatches[0];
-            } else if (locationMatches.length > 1) {
-              responseData.response = `Multiple locations found for "${field}". Please choose from: ${locationMatches
-                .map((loc) => loc.label)
-                .join(", ")}.`;
-              userSession.currentStep = "updateFieldSelection";
-              return responseData;
-            } else {
-              errors.push(`I couldn't find a matching location for ${field}.`);
+            if (field === "pickupLocation" || field === "returnLocation") {
+              const locationMatches = findLocationMatch(userInput); // Use the original userInput
+              if (locationMatches.length === 1) {
+                newValue = locationMatches[0];
+              } else if (locationMatches.length > 1) {
+                bookingDetails[field] = "multiple";
+                bookingDetails[field + "Matches"] = locationMatches;
+              } else {
+                errors.push(
+                  `I couldn't find a location matching your input for ${field}.`
+                );
+              }
+            } else if (field === "pickupDate" || field === "returnDate") {
+              newValue = await extractDateWithGemini(userInput);
+              if (!newValue) {
+                errors.push(
+                  `I couldn't find a date matching your input for ${field}.`
+                );
+              }
+            } else if (field === "pickupTime" || field === "returnTime") {
+              newValue = await extractTimeWithGemini(userInput);
+              if (!newValue) {
+                errors.push(
+                  `I couldn't find a time matching your input for ${field}.`
+                );
+              }
             }
-          } else if (["pickupDate", "returnDate"].includes(field)) {
-            const date = await extractDateWithGemini(newValue);
-            if (date) {
-              updates[field] = date;
-            } else {
-              errors.push(`I couldn't find a valid date for ${field}.`);
-            }
-          } else if (["pickupTime", "returnTime"].includes(field)) {
-            const time = await extractTimeWithGemini(newValue);
-            if (time) {
-              updates[field] = time;
-            } else {
-              errors.push(`I couldn't find a valid time for ${field}.`);
+
+            if (newValue) {
+              updates[field] = newValue;
             }
           }
         }
 
+        // 3. Clearer Error Messages
         if (errors.length > 0) {
           responseData.response = errors.join("\n");
           userSession.currentStep = "updateFieldSelection";
           return responseData;
         }
 
-        Object.assign(bookingDetails, updates);
+        // Update booking details
+        for (const field in updates) {
+          bookingDetails[field] = updates[field];
+        }
 
-        responseData.response =
-          `Updated booking details:\n\n` +
-          `Pickup: ${bookingDetails.pickupDate} at ${
-            bookingDetails.pickupTime
-          } ${bookingDetails.pickupLocation?.label || "Not set"}\n` +
-          `Return: ${bookingDetails.returnDate} at ${
-            bookingDetails.returnTime
-          } ${bookingDetails.returnLocation?.label || "Not set"}\n\n` +
-          `Do you want to confirm these changes? (confirm/edit/cancel)`;
-
+        // 4. Confirmation
+        responseData.response = `Updated booking details. Please confirm:\n\nPickup: ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime} ${bookingDetails.pickupLocation.label}\nReturn: ${bookingDetails.returnDate} at ${bookingDetails.returnTime} ${bookingDetails.returnLocation.label}\n\nDo you want to confirm these changes? (confirm/edit/cancel)`;
         userSession.currentStep = "updateInfo";
       } catch (error) {
         console.error("Error updating fields:", error);
         responseData.response =
-          "Sorry, I couldn't process your request. Please try again.";
+          "Sorry, I couldn't understand the fields you want to update. Please try again.";
         userSession.currentStep = "updateFieldSelection";
       }
-
       break;
     }
-
-    // case "updateFieldSelection": {
-    //   const fieldToUpdate = userInput.toLowerCase();
-
-    //   // 1. Intent Recognition: Identify which fields to change
-    //   const intentPrompt = `From the following text: "${fieldToUpdate}", list the fields the user wants to change. Possible fields: pickupLocation, pickupDate, pickupTime, returnLocation, returnDate, returnTime. Return only the list of fields, separated by commas.`;
-
-    //   console.log("intentPrompt::::" + intentPrompt);
-
-    //   try {
-    //     const intentResponse = await runChat(intentPrompt);
-    //     const fieldsToChange = intentResponse
-    //       .split(",")
-    //       .map((field) => field.trim());
-
-    //     let updates = {};
-    //     let errors = [];
-
-    //     // 2. Value Extraction: Get new values for each field
-    //     for (const field of fieldsToChange) {
-    //       if (bookingDetails.hasOwnProperty(field)) {
-    //         let newValue = null;
-
-    //         if (field === "pickupLocation" || field === "returnLocation") {
-    //           const locationText = await extractLocationWithGemini(userInput);
-    //           if (locationText) {
-    //             const locationMatches = findLocationMatch(locationText);
-    //             console.log("Location matches:", locationMatches);
-
-    //             if (locationMatches.length === 1) {
-    //               if (field === "pickupLocation") {
-    //                 bookingDetails.pickupLocation = locationMatches[0];
-    //               } else {
-    //                 bookingDetails.returnLocation = locationMatches[0];
-    //               }
-    //             } else if (locationMatches.length > 1) {
-    //               if (field === "pickupLocation") {
-    //                 bookingDetails.pickupLocation = "multiple";
-    //                 bookingDetails.pickupLocationMatches = locationMatches;
-    //               } else {
-    //                 bookingDetails.returnLocation = "multiple";
-    //                 bookingDetails.returnLocationMatches = locationMatches;
-    //               }
-    //             } else {
-    //               console.log("No valid location found.");
-    //               if (field === "pickupLocation") {
-    //                 bookingDetails.pickupLocation = locationMatches[0];
-    //               } else {
-    //                 bookingDetails.returnLocation = locationMatches[0];
-    //               }
-    //             }
-    //           } else if (
-    //             !locationText &&
-    //             !bookingDetails.pickupLocation &&
-    //             field === "pickupLocation"
-    //           ) {
-    //             responseData.response = `Sorry, I couldn't find a matching location. Please choose from: ${validLocationLabels.join(
-    //               ", "
-    //             )}`;
-    //           }
-    //         } else if (field === "pickupDate" || field === "returnDate") {
-    //           newValue = await extractDateWithGemini(userInput);
-    //           if (newValue) {
-    //             if (field === "pickupDate") {
-    //               bookingDetails.pickupDate = newValue;
-    //             } else {
-    //               bookingDetails.returnDate = newValue;
-    //             }
-    //           }
-    //           if (!newValue) {
-    //             errors.push(
-    //               `I couldn't find a date matching your input for ${field}.`
-    //             );
-    //           }
-    //         } else if (field === "pickupTime" || field === "returnTime") {
-    //           newValue = await extractTimeWithGemini(userInput);
-    //           if (newValue) {
-    //             if (field === "pickupTime") {
-    //               bookingDetails.pickupTime = newValue;
-    //             } else {
-    //               bookingDetails.returnTime = newValue;
-    //             }
-    //           }
-
-    //           if (!newValue) {
-    //             errors.push(
-    //               `I couldn't find a time matching your input for ${field}.`
-    //             );
-    //           }
-    //         }
-
-    //         if (newValue) {
-    //           updates[field] = newValue;
-    //           userSession.currentStep = "updateInfo"; // Move currentStep update inside the loop
-    //         }
-    //       }
-    //     }
-
-    //     // 3. Clearer Error Messages
-    //     if (errors.length > 0) {
-    //       responseData.response = errors.join("\n");
-    //       userSession.currentStep = "updateFieldSelection";
-    //       return responseData;
-    //     }
-
-    //     // Update booking details
-    //     for (const field in updates) {
-    //       bookingDetails[field] = updates[field];
-    //     }
-
-    //     // 4. Confirmation
-    //     responseData.response = `Updated booking details. Please confirm:\n\nPickup: ${bookingDetails.pickupDate} at ${bookingDetails.pickupTime} ${bookingDetails.pickupLocation.label}\nReturn: ${bookingDetails.returnDate} at ${bookingDetails.returnTime} ${bookingDetails.returnLocation.label}\n\nDo you want to confirm these changes? (confirm/edit/cancel)`;
-    //     //userSession.currentStep = "updateInfo"; //Remove this line.
-    //   } catch (error) {
-    //     console.error("Error updating fields:", error);
-    //     responseData.response =
-    //       "Sorry, I couldn't understand the fields you want to update. Please try again.";
-    //     userSession.currentStep = "updateFieldSelection";
-    //   }
-    //   break;
-    // }
   }
 
   responseData.bookingDetails = bookingDetails;
