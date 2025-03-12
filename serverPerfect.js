@@ -283,70 +283,6 @@ function handleGeminiError(userInput) {
   return "I'm having trouble processing your request. Please try again or provide your input in a simpler format.";
 }
 
-// Add this function before processBookingStep
-async function parseEditRequest(userInput) {
-  const prompt = `Extract booking modification data from: "${userInput}"
-
-Return ONLY a JSON object with this exact structure:
-{
-  "fields": ["list of fields to update"],
-  "values": {
-    "pickupLocation": "location name if specified",
-    "pickupDate": "YYYY-MM-DD if specified",
-    "pickupTime": "HH:mm if specified",
-    "returnLocation": "location name if specified",
-    "returnDate": "YYYY-MM-DD if specified",
-    "returnTime": "HH:mm if specified"
-  }
-}
-
-Rules:
-1. Only include fields explicitly mentioned in the request
-2. For dates: 
-   - If year is not specified, use 2025 for dates after today
-   - Convert to YYYY-MM-DD format
-3. For times: convert to 24-hour HH:mm format
-4. For locations: use exact location name
-5. Return ONLY the JSON object, no other text
-
-Example:
-Input: "change the return date to 12th march 12 pm"
-Output: {"fields":["returnDate","returnTime"],"values":{"returnDate":"2025-03-12","returnTime":"12:00"}}`;
-
-  try {
-    const response = await runChat(prompt);
-    // Clean the response to ensure it's valid JSON
-    const cleanResponse = response.trim().replace(/```json\n?|\n?```/g, '');
-    const parsedResponse = JSON.parse(cleanResponse);
-    
-    // Debug logging
-    console.log('Parsed edit request:', parsedResponse);
-    
-    // Validate dates if present
-    if (parsedResponse.values) {
-      if (parsedResponse.values.returnDate) {
-        const returnDate = new Date(parsedResponse.values.returnDate);
-        if (!isNaN(returnDate.getTime())) {
-          // Format the date back to YYYY-MM-DD
-          parsedResponse.values.returnDate = returnDate.toISOString().split('T')[0];
-        }
-      }
-      if (parsedResponse.values.pickupDate) {
-        const pickupDate = new Date(parsedResponse.values.pickupDate);
-        if (!isNaN(pickupDate.getTime())) {
-          // Format the date back to YYYY-MM-DD
-          parsedResponse.values.pickupDate = pickupDate.toISOString().split('T')[0];
-        }
-      }
-    }
-    
-    return parsedResponse;
-  } catch (error) {
-    console.error("Error parsing edit request:", error);
-    return null;
-  }
-}
-
 // Chat endpoint
 app.post("/chat", async (req, res) => {
   try {
@@ -404,8 +340,8 @@ app.post("/chat", async (req, res) => {
       success: true,
       response: "",
       vehicleList: [],
-      bookingDetails: userSession.bookingDetails,
-      currentStep: userSession.currentStep,
+      bookingDetails: userSession.bookingDetails || {},
+      currentStep: userSession.currentStep || "",
       quickReplies: null
     };
 
@@ -423,8 +359,8 @@ app.post("/chat", async (req, res) => {
           ...responseData,
           ...processedResponse,
           success: true,
-          bookingDetails: userSession.bookingDetails,
-          currentStep: userSession.currentStep,
+          bookingDetails: userSession.bookingDetails || {},
+          currentStep: userSession.currentStep || "",
           quickReplies: processedResponse.quickReplies || null
         };
 
@@ -456,8 +392,8 @@ app.post("/chat", async (req, res) => {
         error: "Processing Error",
         response: "I encountered an error while processing your request. Please try again.",
         vehicleList: [],
-        bookingDetails: userSession.bookingDetails,
-        currentStep: userSession.currentStep,
+        bookingDetails: userSession.bookingDetails || {},
+        currentStep: userSession.currentStep || "",
         quickReplies: null
       });
     }
@@ -488,12 +424,11 @@ const extractLocationWithGemini = async (input) => {
   await geminiRateLimiter.waitForAvailableSlot();
   
   return withRetry(async () => {
-    const prompt = `Extract ONLY the location name from: "${input}"
-Return ONLY the location name, nothing else. If no location is found, return "null".`;
+    const prompt = `Extract the airport or location from the following text: "${input}"\n\nReturn only the location name, nothing else. If no location is found, return "null".`;
 
     try {
       const location = await runChat(prompt);
-      const trimmedLocation = location.trim().replace(/```json\n?|\n?```/g, '');
+      const trimmedLocation = location.trim();
 
       if (trimmedLocation.toLowerCase() === "null") {
         return null;
@@ -511,18 +446,18 @@ const extractDateWithGemini = async (input) => {
   
   return withRetry(async () => {
     const today = new Date().toISOString().split("T")[0];
-    const prompt = `Extract ONLY the date from: "${input}"
-Today's date is ${today}
-
-Return ONLY the date in YYYY-MM-DD format. If no date is found or invalid, return "null".
-Examples:
-- "tomorrow" → "${format(new Date().setDate(new Date().getDate() + 1), 'yyyy-MM-dd')}"
-- "next Monday" → [date of next Monday in YYYY-MM-DD]
-- "July 15th" → "2024-07-15"`;
+    const prompt = `Today's date is ${today}. Extract the date from the following text: "${input}".
+    If the input includes relative dates like "tomorrow", "next Monday", or "in 3 days", convert them to YYYY-MM-DD format.
+    If the input mentions "same day", use today's date.
+    Return only the date in YYYY-MM-DD format. If no date is found or if the date is invalid, return "null".
+    Examples:
+    - "tomorrow" → "${format(new Date().setDate(new Date().getDate() + 1), 'yyyy-MM-dd')}"
+    - "next Monday" → [date of next Monday in YYYY-MM-DD]
+    - "July 15th" → "2024-07-15"`;
 
     try {
       const response = await runChat(prompt);
-      const trimmedDate = response.trim().replace(/```json\n?|\n?```/g, '');
+      const trimmedDate = response.trim();
       
       if (trimmedDate.toLowerCase() === "null") {
         return null;
@@ -552,21 +487,21 @@ const extractTimeWithGemini = async (input) => {
   await geminiRateLimiter.waitForAvailableSlot();
   
   return withRetry(async () => {
-    const prompt = `Extract ONLY the time from: "${input}"
-
-Return ONLY the time in 24-hour HH:mm format. If no time is found or invalid, return "null".
-Examples:
-- "2pm" → "14:00"
-- "2:30pm" → "14:30"
-- "14:30" → "14:30"
-- "9am" → "09:00"
-- "9:30" → "09:30"
-- "noon" → "12:00"
-- "midnight" → "00:00"`;
+    const prompt = `Extract the time from the following text: "${input}".
+    Convert any time format (12-hour or 24-hour) to 24-hour format (HH:mm).
+    Return only the time in HH:mm format. If no time is found or if the time is invalid, return "null".
+    Examples:
+    - "2pm" → "14:00"
+    - "2:30pm" → "14:30"
+    - "14:30" → "14:30"
+    - "9am" → "09:00"
+    - "9:30" → "09:30"
+    - "noon" → "12:00"
+    - "midnight" → "00:00"`;
 
     try {
       const response = await runChat(prompt);
-      const trimmedTime = response.trim().replace(/```json\n?|\n?```/g, '');
+      const trimmedTime = response.trim();
       
       if (trimmedTime.toLowerCase() === "null") {
         return null;
@@ -594,26 +529,7 @@ const isValidDateTime = (dateStr, timeStr) => {
 
 const isValidReturnDate = (pickupDate, returnDate) => {
   if (!pickupDate || !returnDate) return true;
-  
-  // Debug logging
-  console.log('Validating return date:', { pickupDate, returnDate });
-  
-  // Parse dates and ensure they're valid
-  const pickup = new Date(pickupDate);
-  const returnD = new Date(returnDate);
-  
-  if (isNaN(pickup.getTime()) || isNaN(returnD.getTime())) {
-    console.error('Invalid date format:', { pickupDate, returnDate });
-    return false;
-  }
-  
-  // Set both dates to midnight for accurate date comparison
-  pickup.setHours(0, 0, 0, 0);
-  returnD.setHours(0, 0, 0, 0);
-  
-  const isValid = returnD >= pickup;
-  console.log('Date validation result:', isValid);
-  return isValid;
+  return new Date(returnDate) >= new Date(pickupDate);
 };
 
 const isValidReturnTime = (pickupDate, pickupTime, returnDate, returnTime) => {
@@ -632,8 +548,8 @@ async function processBookingStep(userInput, userSession) {
   const responseData = {
     response: "",
     vehicleList: [],
-    bookingDetails: userSession.bookingDetails,
-    currentStep: userSession.currentStep,
+    bookingDetails: {},
+    currentStep: "",
   };
   const { bookingDetails, currentStep } = userSession;
 
@@ -974,8 +890,7 @@ async function processBookingStep(userInput, userSession) {
           return responseData;
         }
       } else if (userInputLower === "edit") {
-        // Instead of cancelling, transition to updateFieldSelection
-        responseData.response = `Current Booking Details:\n\n` +
+        const currentDetails = `Current Booking Details:\n\n` +
           `📍 PICKUP\n` +
           `• Location: ${bookingDetails.pickupLocation.label}\n` +
           `• Date: ${bookingDetails.pickupDate}\n` +
@@ -984,21 +899,26 @@ async function processBookingStep(userInput, userSession) {
           `• Location: ${bookingDetails.returnLocation.label}\n` +
           `• Date: ${bookingDetails.returnDate}\n` +
           `• Time: ${bookingDetails.returnTime}\n\n` +
-          `To modify your booking, you can:\n\n` +
-          `1. Use natural language (e.g., "change pickup location to JFK")\n` +
-          `2. Enter a number (1-6):\n` +
+          `What would you like to modify? You can:\n\n` +
+          `1. Type a number (1-6):\n` +
           `   1 - Pickup Location\n` +
           `   2 - Pickup Date\n` +
           `   3 - Pickup Time\n` +
           `   4 - Return Location\n` +
           `   5 - Return Date\n` +
           `   6 - Return Time\n\n` +
-          `3. Type "done" when finished\n` +
-          `4. Type "cancel" to start over`;
+          `2. Type the field name (e.g., "pickup location")\n` +
+          `3. Type "cancel" to start over`;
+        
+        responseData.response = currentDetails;
         userSession.currentStep = "updateFieldSelection";
-        return responseData;
+      } else if (userInputLower === "cancel") {
+        responseData.response = "I've cancelled your booking. When you're ready to make a new reservation, just say 'reserve a vehicle'.";
+        userSession.currentStep = "greeting";
+        // Clear booking details
+        userSession.bookingDetails = {};
       } else {
-        responseData.response = "Please choose one of these options:\n\n1. Type 'confirm' to proceed with the booking\n2. Type 'edit' to make changes\n3. Type 'cancel' to start over";
+        responseData.response = "Please choose one of these options:\n\n1. Type 'confirm' to proceed with the booking\n2. Type 'edit' to modify any details\n3. Type 'cancel' to start over";
       }
       break;
     }
@@ -1061,127 +981,6 @@ async function processBookingStep(userInput, userSession) {
         userSession.currentStep = "greeting";
         userSession.bookingDetails = {};
         return responseData;
-      } else {
-        // Try to parse as natural language edit request
-        const editRequest = await parseEditRequest(userInput);
-        if (editRequest && editRequest.fields.length > 0) {
-          let updates = {};
-          let errors = [];
-
-          // Process each field update
-          for (const field of editRequest.fields) {
-            const newValue = editRequest.values[field];
-            if (!newValue) continue;
-
-            try {
-              if (field.includes("Location")) {
-                const locationMatches = findLocationMatch(newValue);
-                if (locationMatches.length === 1) {
-                  updates[field] = locationMatches[0];
-                } else if (locationMatches.length > 1) {
-                  errors.push(`Multiple locations found for "${newValue}". Please be more specific.`);
-                } else {
-                  errors.push(`Location "${newValue}" not found. Please choose from our available locations.`);
-                }
-              } else if (field.includes("Date")) {
-                const date = await extractDateWithGemini(newValue);
-                if (date) {
-                  // Validate date based on field type
-                  if (field === "pickupDate") {
-                    const now = new Date();
-                    const pickupDate = new Date(date);
-                    if (pickupDate < now) {
-                      errors.push("Pickup date must be in the future.");
-                      continue;
-                    }
-                    if (bookingDetails.returnDate && !isValidReturnDate(date, bookingDetails.returnDate)) {
-                      errors.push(`Pickup date (${date}) cannot be after return date (${bookingDetails.returnDate}).`);
-                      continue;
-                    }
-                  } else if (field === "returnDate") {
-                    if (!isValidReturnDate(bookingDetails.pickupDate, date)) {
-                      errors.push(`Return date must be on or after pickup date (${bookingDetails.pickupDate}).`);
-                      continue;
-                    }
-                  }
-                  updates[field] = date;
-                } else {
-                  errors.push(`Invalid date format for ${field}. Please use formats like 'tomorrow' or '2024-03-15'.`);
-                }
-              } else if (field.includes("Time")) {
-                const time = await extractTimeWithGemini(newValue);
-                if (time) {
-                  // Validate time based on field type
-                  if (field === "pickupTime") {
-                    const now = new Date();
-                    const today = now.toISOString().split('T')[0];
-                    if (bookingDetails.pickupDate === today) {
-                      const pickupDateTime = new Date(`${bookingDetails.pickupDate} ${time}`);
-                      if (pickupDateTime <= now) {
-                        errors.push("For today's rentals, pickup time must be in the future.");
-                        continue;
-                      }
-                    }
-                    if (bookingDetails.returnDate === bookingDetails.pickupDate && bookingDetails.returnTime &&
-                        !isValidReturnTime(bookingDetails.pickupDate, time, bookingDetails.returnDate, bookingDetails.returnTime)) {
-                      errors.push(`Pickup time cannot be after return time on the same day.`);
-                      continue;
-                    }
-                  } else if (field === "returnTime") {
-                    if (bookingDetails.returnDate === bookingDetails.pickupDate && 
-                        !isValidReturnTime(bookingDetails.pickupDate, bookingDetails.pickupTime, bookingDetails.returnDate, time)) {
-                      errors.push(`Return time must be after pickup time on the same day.`);
-                      continue;
-                    }
-                  }
-                  updates[field] = time;
-                } else {
-                  errors.push(`Invalid time format for ${field}. Please use formats like '2pm' or '14:30'.`);
-                }
-              }
-            } catch (error) {
-              console.error(`Error processing ${field}:`, error);
-              errors.push(`Error processing ${field}. Please try again.`);
-            }
-          }
-
-          // Apply updates if no errors
-          if (errors.length === 0) {
-            Object.assign(bookingDetails, updates);
-            responseData.response = `I've updated your booking details:\n\n` +
-              `📍 PICKUP\n` +
-              `• Location: ${bookingDetails.pickupLocation.label}\n` +
-              `• Date: ${bookingDetails.pickupDate}\n` +
-              `• Time: ${bookingDetails.pickupTime}\n\n` +
-              `📍 RETURN\n` +
-              `• Location: ${bookingDetails.returnLocation.label}\n` +
-              `• Date: ${bookingDetails.returnDate}\n` +
-              `• Time: ${bookingDetails.returnTime}\n\n` +
-              `Would you like to:\n` +
-              `1. Confirm these changes (type 'confirm')\n` +
-              `2. Make more changes (type 'edit')\n` +
-              `3. Start over (type 'cancel')`;
-            userSession.currentStep = "updateInfo";
-            return responseData;
-          } else {
-            // Show errors and current state
-            responseData.response = `I couldn't process some of your changes:\n\n${errors.join('\n')}\n\n` +
-              `Current Booking Details:\n\n` +
-              `📍 PICKUP\n` +
-              `• Location: ${bookingDetails.pickupLocation.label}\n` +
-              `• Date: ${bookingDetails.pickupDate}\n` +
-              `• Time: ${bookingDetails.pickupTime}\n\n` +
-              `📍 RETURN\n` +
-              `• Location: ${bookingDetails.returnLocation.label}\n` +
-              `• Date: ${bookingDetails.returnDate}\n` +
-              `• Time: ${bookingDetails.returnTime}\n\n` +
-              `You can:\n` +
-              `1. Try again with corrected values\n` +
-              `2. Use the numbered menu (1-6) to modify specific fields\n` +
-              `3. Type "cancel" to start over`;
-            return responseData;
-          }
-        }
       }
 
       // If no valid input, show the options again
@@ -1195,16 +994,15 @@ async function processBookingStep(userInput, userSession) {
         `• Date: ${bookingDetails.returnDate}\n` +
         `• Time: ${bookingDetails.returnTime}\n\n` +
         `To modify your booking, you can:\n\n` +
-        `1. Use natural language (e.g., "change pickup location to JFK")\n` +
-        `2. Enter a number (1-6):\n` +
+        `1. Enter a number (1-6):\n` +
         `   1 - Pickup Location\n` +
         `   2 - Pickup Date\n` +
         `   3 - Pickup Time\n` +
         `   4 - Return Location\n` +
         `   5 - Return Date\n` +
         `   6 - Return Time\n\n` +
-        `3. Type "done" when finished\n` +
-        `4. Type "cancel" to start over`;
+        `2. Type "done" when finished\n` +
+        `3. Type "cancel" to start over`;
       return responseData;
     }
 

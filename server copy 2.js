@@ -404,8 +404,8 @@ app.post("/chat", async (req, res) => {
       success: true,
       response: "",
       vehicleList: [],
-      bookingDetails: userSession.bookingDetails,
-      currentStep: userSession.currentStep,
+      bookingDetails: userSession.bookingDetails || {},
+      currentStep: userSession.currentStep || "",
       quickReplies: null
     };
 
@@ -423,8 +423,8 @@ app.post("/chat", async (req, res) => {
           ...responseData,
           ...processedResponse,
           success: true,
-          bookingDetails: userSession.bookingDetails,
-          currentStep: userSession.currentStep,
+          bookingDetails: userSession.bookingDetails || {},
+          currentStep: userSession.currentStep || "",
           quickReplies: processedResponse.quickReplies || null
         };
 
@@ -456,8 +456,8 @@ app.post("/chat", async (req, res) => {
         error: "Processing Error",
         response: "I encountered an error while processing your request. Please try again.",
         vehicleList: [],
-        bookingDetails: userSession.bookingDetails,
-        currentStep: userSession.currentStep,
+        bookingDetails: userSession.bookingDetails || {},
+        currentStep: userSession.currentStep || "",
         quickReplies: null
       });
     }
@@ -632,8 +632,8 @@ async function processBookingStep(userInput, userSession) {
   const responseData = {
     response: "",
     vehicleList: [],
-    bookingDetails: userSession.bookingDetails,
-    currentStep: userSession.currentStep,
+    bookingDetails: {},
+    currentStep: "",
   };
   const { bookingDetails, currentStep } = userSession;
 
