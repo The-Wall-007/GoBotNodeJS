@@ -64,17 +64,9 @@ let validLocations = [];
 let validLocationLabels = [];
 const userSessions = new Map(); // Store booking states per user
 
-// Add location cache
-const locationCache = new Map();
-
-// Optimize location matching with caching
+// Utility functions
 function findLocationMatch(input) {
   const lowerInput = input.toLowerCase().trim();
-  
-  // Check cache first
-  if (locationCache.has(lowerInput)) {
-    return locationCache.get(lowerInput);
-  }
   
   // Remove common words that might interfere with matching
   const cleanInput = lowerInput
@@ -84,7 +76,7 @@ function findLocationMatch(input) {
     .replace(/\bairport\b/g, '')
     .trim();
 
-  const matches = validLocations.filter(
+  return validLocations.filter(
     (loc) => {
       const locValue = loc.value.toLowerCase();
       const locLabel = loc.label.toLowerCase();
@@ -104,10 +96,6 @@ function findLocationMatch(input) {
              locLabel.includes(cleanInput.toUpperCase());
     }
   );
-
-  // Cache the result
-  locationCache.set(lowerInput, matches);
-  return matches;
 }
 
 const getLocationListDisplay = (locations, page = 1, itemsPerPage = 10) => {
@@ -295,12 +283,9 @@ function handleGeminiError(userInput) {
   return "I'm having trouble processing your request. Please try again or provide your input in a simpler format.";
 }
 
-// Add back parseEditRequest function
+// Add this function before processBookingStep
 async function parseEditRequest(userInput) {
-  await geminiRateLimiter.waitForAvailableSlot();
-  
-  return withRetry(async () => {
-    const prompt = `Extract booking modification data from: "${userInput}"
+  const prompt = `Extract booking modification data from: "${userInput}"
 
 Return ONLY a JSON object with this exact structure:
 {
@@ -328,82 +313,38 @@ Example:
 Input: "change the return date to 12th march 12 pm"
 Output: {"fields":["returnDate","returnTime"],"values":{"returnDate":"2025-03-12","returnTime":"12:00"}}`;
 
-    try {
-      const response = await runChat(prompt);
-      // Clean the response to ensure it's valid JSON
-      const cleanResponse = response.trim().replace(/```json\n?|\n?```/g, '');
-      const parsedResponse = JSON.parse(cleanResponse);
-      
-      // Validate dates if present
-      if (parsedResponse.values) {
-        if (parsedResponse.values.returnDate) {
-          const returnDate = new Date(parsedResponse.values.returnDate);
-          if (!isNaN(returnDate.getTime())) {
-            parsedResponse.values.returnDate = returnDate.toISOString().split('T')[0];
-          }
-        }
-        if (parsedResponse.values.pickupDate) {
-          const pickupDate = new Date(parsedResponse.values.pickupDate);
-          if (!isNaN(pickupDate.getTime())) {
-            parsedResponse.values.pickupDate = pickupDate.toISOString().split('T')[0];
-          }
+  try {
+    const response = await runChat(prompt);
+    // Clean the response to ensure it's valid JSON
+    const cleanResponse = response.trim().replace(/```json\n?|\n?```/g, '');
+    const parsedResponse = JSON.parse(cleanResponse);
+    
+    // Debug logging
+    console.log('Parsed edit request:', parsedResponse);
+    
+    // Validate dates if present
+    if (parsedResponse.values) {
+      if (parsedResponse.values.returnDate) {
+        const returnDate = new Date(parsedResponse.values.returnDate);
+        if (!isNaN(returnDate.getTime())) {
+          // Format the date back to YYYY-MM-DD
+          parsedResponse.values.returnDate = returnDate.toISOString().split('T')[0];
         }
       }
-      
-      return parsedResponse;
-    } catch (error) {
-      console.error("Error parsing edit request:", error);
-      return null;
-    }
-  });
-}
-
-// Keep the optimized extractBookingInfo function for regular booking flow
-async function extractBookingInfo(input) {
-  await geminiRateLimiter.waitForAvailableSlot();
-  
-  return withRetry(async () => {
-    const prompt = `Extract booking information from: "${input}"
-
-Return ONLY a JSON object with this exact structure:
-{
-  "location": "location name if specified",
-  "date": "YYYY-MM-DD if specified",
-  "time": "HH:mm if specified"
-}
-
-Rules:
-1. For dates: 
-   - If year is not specified, use 2025 for dates after today
-   - Convert to YYYY-MM-DD format
-2. For times: convert to 24-hour HH:mm format
-3. For locations: use exact location name
-4. Return ONLY the JSON object, no other text
-
-Example:
-Input: "I want to pick up at LAX tomorrow at 2pm"
-Output: {"location":"LAX","date":"2025-03-21","time":"14:00"}`;
-
-    try {
-      const response = await runChat(prompt);
-      // Clean the response to ensure it's valid JSON
-      const cleanResponse = response.trim().replace(/```json\n?|\n?```/g, '');
-      const parsedResponse = JSON.parse(cleanResponse);
-      
-      // Validate dates if present
-      if (parsedResponse.date) {
-        const date = new Date(parsedResponse.date);
-        if (!isNaN(date.getTime())) {
-          parsedResponse.date = date.toISOString().split('T')[0];
+      if (parsedResponse.values.pickupDate) {
+        const pickupDate = new Date(parsedResponse.values.pickupDate);
+        if (!isNaN(pickupDate.getTime())) {
+          // Format the date back to YYYY-MM-DD
+          parsedResponse.values.pickupDate = pickupDate.toISOString().split('T')[0];
         }
       }
-      
-      return parsedResponse;
-    } catch (error) {
-      console.error("Error extracting booking info:", error);
-      return null;
     }
-  });
+    
+    return parsedResponse;
+  } catch (error) {
+    console.error("Error parsing edit request:", error);
+    return null;
+  }
 }
 
 // Chat endpoint
@@ -651,16 +592,42 @@ const isValidDateTime = (dateStr, timeStr) => {
   return dateTime > new Date();
 };
 
-const isValidReturnDateTime = (pickupDate, pickupTime, returnDate, returnTime) => {
-  if (!pickupDate || !pickupTime || !returnDate || !returnTime) return true;
+const isValidReturnDate = (pickupDate, returnDate) => {
+  if (!pickupDate || !returnDate) return true;
   
-  const pickup = new Date(`${pickupDate} ${pickupTime}`);
-  const returnD = new Date(`${returnDate} ${returnTime}`);
+  // Debug logging
+  console.log('Validating return date:', { pickupDate, returnDate });
   
-  return returnD > pickup;
+  // Parse dates and ensure they're valid
+  const pickup = new Date(pickupDate);
+  const returnD = new Date(returnDate);
+  
+  if (isNaN(pickup.getTime()) || isNaN(returnD.getTime())) {
+    console.error('Invalid date format:', { pickupDate, returnDate });
+    return false;
+  }
+  
+  // Set both dates to midnight for accurate date comparison
+  pickup.setHours(0, 0, 0, 0);
+  returnD.setHours(0, 0, 0, 0);
+  
+  const isValid = returnD >= pickup;
+  console.log('Date validation result:', isValid);
+  return isValid;
 };
 
-// Update the processBookingStep function to use the optimized extraction
+const isValidReturnTime = (pickupDate, pickupTime, returnDate, returnTime) => {
+  if (!pickupDate || !pickupTime || !returnDate || !returnTime) return true;
+  if (pickupDate === returnDate) {
+    return (
+      new Date(`${returnDate} ${returnTime}`) >
+      new Date(`${pickupDate} ${pickupTime}`)
+    );
+  }
+  return true;
+};
+
+// Booking step processor
 async function processBookingStep(userInput, userSession) {
   const responseData = {
     response: "",
@@ -669,39 +636,6 @@ async function processBookingStep(userInput, userSession) {
     currentStep: userSession.currentStep,
   };
   const { bookingDetails, currentStep } = userSession;
-
-  // Extract all information at once
-  const extractedInfo = await extractBookingInfo(userInput);
-  
-  // Process the extracted information based on current step
-  if (extractedInfo) {
-    if (extractedInfo.location) {
-      const locationMatches = findLocationMatch(extractedInfo.location);
-      if (locationMatches.length === 1) {
-        if (currentStep.includes("pickup")) {
-          bookingDetails.pickupLocation = locationMatches[0];
-        } else if (currentStep.includes("return")) {
-          bookingDetails.returnLocation = locationMatches[0];
-        }
-      }
-    }
-    
-    if (extractedInfo.date) {
-      if (currentStep.includes("pickup")) {
-        bookingDetails.pickupDate = extractedInfo.date;
-      } else if (currentStep.includes("return")) {
-        bookingDetails.returnDate = extractedInfo.date;
-      }
-    }
-    
-    if (extractedInfo.time) {
-      if (currentStep.includes("pickup")) {
-        bookingDetails.pickupTime = extractedInfo.time;
-      } else if (currentStep.includes("return")) {
-        bookingDetails.returnTime = extractedInfo.time;
-      }
-    }
-  }
 
   // Check if user wants to reserve a vehicle
   if (userInput.toLowerCase().includes("reserve a vehicle")) {
@@ -739,9 +673,16 @@ async function processBookingStep(userInput, userSession) {
     case "pickupTime": {
       let updatedInfo = false;
       
+      // Extract all information simultaneously
+      const [locationText, date, time] = await Promise.all([
+        extractLocationWithGemini(userInput),
+        extractDateWithGemini(userInput),
+        extractTimeWithGemini(userInput)
+      ]);
+      
       // Process location if not already set
-      if (!bookingDetails.pickupLocation && extractedInfo.location) {
-        const locationMatches = findLocationMatch(extractedInfo.location);
+      if (!bookingDetails.pickupLocation && locationText) {
+        const locationMatches = findLocationMatch(locationText);
         if (locationMatches.length === 1) {
           bookingDetails.pickupLocation = locationMatches[0];
           updatedInfo = true;
@@ -760,24 +701,24 @@ async function processBookingStep(userInput, userSession) {
           };
           
           // Store any valid date/time we found for later use
-          if (extractedInfo.date) bookingDetails._tempDate = extractedInfo.date;
-          if (extractedInfo.time) bookingDetails._tempTime = extractedInfo.time;
+          if (date) bookingDetails._tempDate = date;
+          if (time) bookingDetails._tempTime = time;
           
           return responseData;
         }
       }
 
       // Process date if not already set
-      if (!bookingDetails.pickupDate && (extractedInfo.date || bookingDetails._tempDate)) {
-        const dateToUse = extractedInfo.date || bookingDetails._tempDate;
+      if (!bookingDetails.pickupDate && (date || bookingDetails._tempDate)) {
+        const dateToUse = date || bookingDetails._tempDate;
         bookingDetails.pickupDate = dateToUse;
         delete bookingDetails._tempDate;
         updatedInfo = true;
       }
 
       // Process time if not already set
-      if (!bookingDetails.pickupTime && (extractedInfo.time || bookingDetails._tempTime)) {
-        const timeToUse = extractedInfo.time || bookingDetails._tempTime;
+      if (!bookingDetails.pickupTime && (time || bookingDetails._tempTime)) {
+        const timeToUse = time || bookingDetails._tempTime;
         bookingDetails.pickupTime = timeToUse;
         delete bookingDetails._tempTime;
         updatedInfo = true;
@@ -812,8 +753,8 @@ async function processBookingStep(userInput, userSession) {
           };
           
           // Store any valid date/time we found for later use
-          if (extractedInfo.date) bookingDetails._tempDate = extractedInfo.date;
-          if (extractedInfo.time) bookingDetails._tempTime = extractedInfo.time;
+          if (date) bookingDetails._tempDate = date;
+          if (time) bookingDetails._tempTime = time;
           
           return responseData;
         }
@@ -849,10 +790,19 @@ async function processBookingStep(userInput, userSession) {
     case "returnDate":
     case "returnTime": {
       let updatedInfo = false;
+      let processedDate = false;
+      let processedTime = false;
       
+      // Always try to extract all information (location, date, and time) from input
+      const [locationText, date, time] = await Promise.all([
+        extractLocationWithGemini(userInput),
+        extractDateWithGemini(userInput),
+        extractTimeWithGemini(userInput)
+      ]);
+
       // Process location if not already set
-      if (!bookingDetails.returnLocation && extractedInfo.location) {
-        const locationMatches = findLocationMatch(extractedInfo.location);
+      if (!bookingDetails.returnLocation && locationText) {
+        const locationMatches = findLocationMatch(locationText);
         if (locationMatches.length === 1) {
           bookingDetails.returnLocation = locationMatches[0];
           updatedInfo = true;
@@ -873,58 +823,35 @@ async function processBookingStep(userInput, userSession) {
         }
       }
 
-      // Process date and time together if both are provided
-      if (extractedInfo.date && extractedInfo.time) {
-        if (!isValidReturnDateTime(
-          bookingDetails.pickupDate,
-          bookingDetails.pickupTime,
-          extractedInfo.date,
-          extractedInfo.time
-        )) {
-          responseData.response = `The return date/time must be after your pickup (${bookingDetails.pickupDate} ${bookingDetails.pickupTime}). You can:\n\n` +
-            `1. Choose a later return date/time\n` +
-            `2. Type "2" to modify the pickup date/time instead\n` +
+      // Process date if not already set
+      if (!bookingDetails.returnDate && date) {
+        if (!isValidReturnDate(bookingDetails.pickupDate, date)) {
+          responseData.response = `The return date must be on or after your pickup date (${bookingDetails.pickupDate}). You can:\n\n` +
+            `1. Choose a later return date (on or after ${bookingDetails.pickupDate})\n` +
+            `2. Type "2" to modify the pickup date instead\n` +
             `3. Type "cancel" to start over`;
           userSession.currentStep = "updateFieldSelection";
           return responseData;
         }
-        bookingDetails.returnDate = extractedInfo.date;
-        bookingDetails.returnTime = extractedInfo.time;
+        bookingDetails.returnDate = date;
         updatedInfo = true;
-      } else {
-        // Process date separately if only date is provided
-        if (!bookingDetails.returnDate && extractedInfo.date) {
-          const tempDateTime = new Date(`${extractedInfo.date} ${bookingDetails.pickupTime}`);
-          const pickupDateTime = new Date(`${bookingDetails.pickupDate} ${bookingDetails.pickupTime}`);
-          
-          if (tempDateTime <= pickupDateTime) {
-            responseData.response = `The return date must be after your pickup date (${bookingDetails.pickupDate}). You can:\n\n` +
-              `1. Choose a later return date\n` +
-              `2. Type "2" to modify the pickup date instead\n` +
-              `3. Type "cancel" to start over`;
-            userSession.currentStep = "updateFieldSelection";
-            return responseData;
-          }
-          bookingDetails.returnDate = extractedInfo.date;
-          updatedInfo = true;
-        }
+        processedDate = true;
+      }
 
-        // Process time separately if only time is provided
-        if (!bookingDetails.returnTime && extractedInfo.time) {
-          const tempDateTime = new Date(`${bookingDetails.returnDate || bookingDetails.pickupDate} ${extractedInfo.time}`);
-          const pickupDateTime = new Date(`${bookingDetails.pickupDate} ${bookingDetails.pickupTime}`);
-          
-          if (tempDateTime <= pickupDateTime) {
-            responseData.response = `The return time must be after your pickup time (${bookingDetails.pickupTime}). You can:\n\n` +
-              `1. Choose a later return time\n` +
-              `2. Type "3" to modify the pickup time instead\n` +
-              `3. Type "cancel" to start over`;
-            userSession.currentStep = "updateFieldSelection";
-            return responseData;
-          }
-          bookingDetails.returnTime = extractedInfo.time;
-          updatedInfo = true;
+      // Process time if not already set
+      if (!bookingDetails.returnTime && time) {
+        if (bookingDetails.returnDate === bookingDetails.pickupDate && 
+            !isValidReturnTime(bookingDetails.pickupDate, bookingDetails.pickupTime, bookingDetails.returnDate, time)) {
+          responseData.response = `The pickup time (${time}) would be after your current return time (${bookingDetails.returnTime}). You can:\n\n` +
+            `1. Choose an earlier pickup time (before ${bookingDetails.returnTime})\n` +
+            `2. Type "6" to modify the return time instead\n` +
+            `3. Type "cancel" to start over`;
+          userSession.currentStep = "updateFieldSelection";
+          return responseData;
         }
+        bookingDetails.returnTime = time;
+        updatedInfo = true;
+        processedTime = true;
       }
 
       // If we have all return details, show summary and proceed
@@ -1157,56 +1084,57 @@ async function processBookingStep(userInput, userSession) {
                   errors.push(`Location "${newValue}" not found. Please choose from our available locations.`);
                 }
               } else if (field.includes("Date")) {
-                const date = new Date(newValue);
-                if (!isNaN(date.getTime())) {
+                const date = await extractDateWithGemini(newValue);
+                if (date) {
                   // Validate date based on field type
                   if (field === "pickupDate") {
                     const now = new Date();
-                    if (date < now) {
+                    const pickupDate = new Date(date);
+                    if (pickupDate < now) {
                       errors.push("Pickup date must be in the future.");
                       continue;
                     }
-                    if (bookingDetails.returnDate && !isValidReturnDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime, newValue, bookingDetails.returnTime)) {
-                      errors.push(`Pickup date (${newValue}) cannot be after return date (${bookingDetails.returnDate}).`);
+                    if (bookingDetails.returnDate && !isValidReturnDate(date, bookingDetails.returnDate)) {
+                      errors.push(`Pickup date (${date}) cannot be after return date (${bookingDetails.returnDate}).`);
                       continue;
                     }
                   } else if (field === "returnDate") {
-                    if (!isValidReturnDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime, newValue, bookingDetails.returnTime)) {
-                      errors.push(`Return date must be after pickup date (${bookingDetails.pickupDate}).`);
+                    if (!isValidReturnDate(bookingDetails.pickupDate, date)) {
+                      errors.push(`Return date must be on or after pickup date (${bookingDetails.pickupDate}).`);
                       continue;
                     }
                   }
-                  updates[field] = newValue;
+                  updates[field] = date;
                 } else {
                   errors.push(`Invalid date format for ${field}. Please use formats like 'tomorrow' or '2024-03-15'.`);
                 }
               } else if (field.includes("Time")) {
-                const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-                if (timeRegex.test(newValue)) {
+                const time = await extractTimeWithGemini(newValue);
+                if (time) {
                   // Validate time based on field type
                   if (field === "pickupTime") {
                     const now = new Date();
                     const today = now.toISOString().split('T')[0];
                     if (bookingDetails.pickupDate === today) {
-                      const pickupDateTime = new Date(`${bookingDetails.pickupDate} ${newValue}`);
+                      const pickupDateTime = new Date(`${bookingDetails.pickupDate} ${time}`);
                       if (pickupDateTime <= now) {
                         errors.push("For today's rentals, pickup time must be in the future.");
                         continue;
                       }
                     }
                     if (bookingDetails.returnDate === bookingDetails.pickupDate && bookingDetails.returnTime &&
-                        !isValidReturnDateTime(bookingDetails.pickupDate, newValue, bookingDetails.returnDate, bookingDetails.returnTime)) {
+                        !isValidReturnTime(bookingDetails.pickupDate, time, bookingDetails.returnDate, bookingDetails.returnTime)) {
                       errors.push(`Pickup time cannot be after return time on the same day.`);
                       continue;
                     }
                   } else if (field === "returnTime") {
                     if (bookingDetails.returnDate === bookingDetails.pickupDate && 
-                        !isValidReturnDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime, bookingDetails.returnDate, newValue)) {
+                        !isValidReturnTime(bookingDetails.pickupDate, bookingDetails.pickupTime, bookingDetails.returnDate, time)) {
                       errors.push(`Return time must be after pickup time on the same day.`);
                       continue;
                     }
                   }
-                  updates[field] = newValue;
+                  updates[field] = time;
                 } else {
                   errors.push(`Invalid time format for ${field}. Please use formats like '2pm' or '14:30'.`);
                 }
@@ -1378,7 +1306,7 @@ async function processBookingStep(userInput, userSession) {
               return responseData;
             }
             // If changing pickup date, validate return date if it exists
-            if (bookingDetails.returnDate && !isValidReturnDateTime(date, bookingDetails.pickupTime, bookingDetails.returnDate, bookingDetails.returnTime)) {
+            if (bookingDetails.returnDate && !isValidReturnDate(date, bookingDetails.returnDate)) {
               responseData.response = `The pickup date (${date}) would be after your current return date (${bookingDetails.returnDate}). You can:\n\n` +
                 `1. Choose an earlier pickup date (before ${bookingDetails.returnDate})\n` +
                 `2. Type "5" to modify the return date instead\n` +
@@ -1387,7 +1315,7 @@ async function processBookingStep(userInput, userSession) {
               return responseData;
             }
           } else if (editingField === "returnDate") {
-            if (!isValidReturnDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime, date, bookingDetails.returnTime)) {
+            if (!isValidReturnDate(bookingDetails.pickupDate, date)) {
               responseData.response = `The return date must be on or after your pickup date (${bookingDetails.pickupDate}). You can:\n\n` +
                 `1. Choose a later return date (on or after ${bookingDetails.pickupDate})\n` +
                 `2. Type "2" to modify the pickup date instead\n` +
@@ -1437,7 +1365,7 @@ async function processBookingStep(userInput, userSession) {
             }
             // If changing pickup time, validate return time if it's the same day
             if (bookingDetails.returnDate === bookingDetails.pickupDate && bookingDetails.returnTime &&
-                !isValidReturnDateTime(bookingDetails.pickupDate, time, bookingDetails.returnDate, bookingDetails.returnTime)) {
+                !isValidReturnTime(bookingDetails.pickupDate, time, bookingDetails.returnDate, bookingDetails.returnTime)) {
               responseData.response = `The pickup time (${time}) would be after your current return time (${bookingDetails.returnTime}). You can:\n\n` +
                 `1. Choose an earlier pickup time (before ${bookingDetails.returnTime})\n` +
                 `2. Type "6" to modify the return time instead\n` +
@@ -1447,7 +1375,7 @@ async function processBookingStep(userInput, userSession) {
             }
           } else if (editingField === "returnTime") {
             if (bookingDetails.returnDate === bookingDetails.pickupDate && 
-                !isValidReturnDateTime(bookingDetails.pickupDate, bookingDetails.pickupTime, bookingDetails.returnDate, time)) {
+                !isValidReturnTime(bookingDetails.pickupDate, bookingDetails.pickupTime, bookingDetails.returnDate, time)) {
               responseData.response = `For same-day rentals, the return time must be after your pickup time (${bookingDetails.pickupTime}). You can:\n\n` +
                 `1. Choose a later return time (after ${bookingDetails.pickupTime})\n` +
                 `2. Type "3" to modify the pickup time instead\n` +
